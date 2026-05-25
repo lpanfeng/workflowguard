@@ -84,3 +84,23 @@ export interface AuditLog {
   user_agent: string | null
   created_at: string
 }
+
+/** 套餐配额限制表 */
+export interface PlanLimit {
+  plan: Plan
+  price_monthly: number
+  max_workflows: number
+  max_approvals: number
+  max_ai_calls: number
+  features: string[]
+  created_at: string
+}
+
+/** 配额检查结果 */
+export interface QuotaCheckResult {
+  allowed: boolean
+  remaining: number
+  plan: Plan
+  max: number
+  used?: number
+}
