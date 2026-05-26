@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { AlertTriangle, CheckCircle2, Workflow, Loader2, FileText, Activity } from "lucide-react"
+import { AlertTriangle, CheckCircle2, Workflow, Loader2, FileText, Activity, Plus, Sparkles } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { NavBar } from "@/components/NavBar"
+import { TaskCreateDialog } from "@/components/TaskCreateDialog"
 
 type DashboardStats = {
   pendingApproval: number
@@ -19,6 +21,14 @@ type DashboardStats = {
   totalTasks: number
   approvalUsed: number
   approvalQuota: number
+}
+
+type RecentActivity = {
+  id: string
+  type: string
+  status: string
+  title: string
+  created_at: string
 }
 
 export default function DashboardPage() {
@@ -34,6 +44,7 @@ export default function DashboardPage() {
     approvalQuota: 100,
   })
   const [loading, setLoading] = useState(true)
+  const [recentTasks, setRecentTasks] = useState<RecentActivity[]>([])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -44,6 +55,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (session?.user?.id) {
       loadStats()
+      loadRecentTasks()
     }
   }, [session])
 
@@ -52,7 +64,8 @@ export default function DashboardPage() {
     setLoading(true)
 
     try {
-      // 并行获取所有统计数据
+      const today = new Date().toISOString().slice(0, 10)
+      
       const [
         { count: pendingCount },
         { count: todayCount },
@@ -70,7 +83,7 @@ export default function DashboardPage() {
           .select("*", { count: "exact", head: true })
           .eq("user_id", session.user.id)
           .in("status", ["approved", "completed"])
-          .gte("updated_at", new Date().toISOString().slice(0, 10)),
+          .gte("updated_at", today),
         supabase
           .from("workflows")
           .select("*", { count: "exact", head: true })
@@ -104,6 +117,27 @@ export default function DashboardPage() {
     }
   }
 
+  const loadRecentTasks = async () => {
+    if (!session?.user?.id) return
+    try {
+      const { data } = await supabase
+        .from("tasks")
+        .select("id, type, status, title, created_at")
+        .eq("user_id", session.user.id)
+        .order("created_at", { ascending: false })
+        .limit(5)
+
+      setRecentTasks(data ?? [])
+    } catch (err) {
+      console.error("加载最近任务失败:", err)
+    }
+  }
+
+  const handleTaskCreated = useCallback(() => {
+    loadStats()
+    loadRecentTasks()
+  }, [])
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -114,45 +148,31 @@ export default function DashboardPage() {
 
   if (!session?.user) return null
 
+  const STATUS_BADGES: Record<string, { label: string; color: string }> = {
+    pending: { label: "待处理", color: "bg-slate-100 text-slate-700" },
+    ai_processing: { label: "AI 处理中", color: "bg-purple-100 text-purple-700" },
+    waiting_approval: { label: "待审批", color: "bg-amber-100 text-amber-700" },
+    approved: { label: "已通过", color: "bg-green-100 text-green-700" },
+    rejected: { label: "已驳回", color: "bg-red-100 text-red-700" },
+    completed: { label: "已完成", color: "bg-blue-100 text-blue-700" },
+    failed: { label: "失败", color: "bg-red-100 text-red-700" },
+  }
+
+  const TYPE_ICONS: Record<string, string> = {
+    customer_service: "🎧",
+    content_publish: "📝",
+    data_entry: "📊",
+  }
+
+  const TYPE_LABELS: Record<string, string> = {
+    customer_service: "客服工单",
+    content_publish: "内容发布",
+    data_entry: "数据录入",
+  }
+
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* 顶部导航 */}
-      <header className="border-b bg-background">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Link href="/" className="text-xl font-bold">
-            WorkflowGuard
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/workflows/new">
-              <Button variant="ghost" size="sm">创建工作流</Button>
-            </Link>
-            <Link href="/tasks">
-              <Button variant="ghost" size="sm">任务列表</Button>
-            </Link>
-            <Link href="/audit-logs">
-              <Button variant="ghost" size="sm">审计日志</Button>
-            </Link>
-            <Link href="/pricing">
-              <Button variant="ghost" size="sm">定价</Button>
-            </Link>
-            <Link href="/settings">
-              <Button variant="ghost" size="sm">设置</Button>
-            </Link>
-            <span className="text-sm text-muted-foreground">
-              {session.user.email}
-            </span>
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={session.user.image ?? undefined} />
-              <AvatarFallback>
-                {session.user.name?.charAt(0) ?? "U"}
-              </AvatarFallback>
-            </Avatar>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
-              退出
-            </Button>
-          </div>
-        </div>
-      </header>
+      <NavBar />
 
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
@@ -273,33 +293,57 @@ export default function DashboardPage() {
               <CardDescription>近期的任务和操作记录</CardDescription>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <p className="text-sm text-muted-foreground py-4">加载中...</p>
-              ) : stats.totalTasks === 0 ? (
+              {recentTasks.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">还没有活动记录</p>
-                  <Link href="/workflows/new">
-                    <Button variant="outline" size="sm">创建第一个工作流</Button>
-                  </Link>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    点击右下角的 <Plus className="h-3 w-3 inline" /> 按钮创建你的第一个任务
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.location.href = "/workflows/new"}
+                  >
+                    先创建工作流
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <Link href="/tasks">
-                    <p className="text-sm text-blue-600 hover:underline">
-                      已处理 {stats.completedToday} 个任务（今日）
-                    </p>
-                  </Link>
-                  <Link href="/tasks?filter=waiting_approval">
-                    <p className={`text-sm ${stats.pendingApproval > 0 ? "text-amber-600 font-medium" : "text-muted-foreground"} hover:underline`}>
-                      {stats.pendingApproval > 0
-                        ? `${stats.pendingApproval} 个任务待审批`
-                        : "暂无待审批任务"}
-                    </p>
-                  </Link>
-                  <Link href="/audit-logs">
-                    <p className="text-sm text-muted-foreground hover:underline">
-                      查看完整审计日志 →
-                    </p>
+                  {recentTasks.map((task) => (
+                    <Link
+                      key={task.id}
+                      href="/tasks"
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <span className="text-lg">
+                        {TYPE_ICONS[task.type] ?? "📋"}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{task.title}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {TYPE_LABELS[task.type] ?? task.type}
+                          {" · "}
+                          {new Date(task.created_at).toLocaleString("zh-CN", {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${STATUS_BADGES[task.status]?.color ?? ""}`}
+                      >
+                        {STATUS_BADGES[task.status]?.label ?? task.status}
+                      </Badge>
+                    </Link>
+                  ))}
+                  <Link
+                    href="/tasks"
+                    className="block text-sm text-primary hover:underline pt-2 text-center"
+                  >
+                    查看全部任务 →
                   </Link>
                 </div>
               )}
@@ -348,6 +392,9 @@ export default function DashboardPage() {
           </Card>
         </div>
       </main>
+
+      {/* Floating Action Button + Task Create Dialog */}
+      <TaskCreateDialog userId={session.user.id} onTaskCreated={handleTaskCreated} />
     </div>
   )
 }
