@@ -1,8 +1,9 @@
-// WorkflowGuard — 任务审批 API
-// 支持通过/驳回，写入审计日志
+// WorkflowGuard — 任务审批 API v2
+// 支持通过/驳回，写入审计日志，自动恢复工作流执行
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { handleTaskApprovalResume } from "@/lib/workflow-executor"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -82,6 +83,15 @@ export async function POST(request: NextRequest) {
         action: "task_rejected",
         details: { comment },
       })
+    }
+
+    // 2. 恢复工作流执行（如果有关联）
+    try {
+      await handleTaskApprovalResume(taskId, action, userId, comment, modifiedResult)
+      console.log(`[Approve] 工作流执行恢复成功: taskId=${taskId}, action=${action}`)
+    } catch (resumeErr) {
+      // 如果关联执行失败，不阻塞审批本身
+      console.error(`[Approve] 工作流执行恢复失败:`, resumeErr)
     }
 
     return NextResponse.json({
