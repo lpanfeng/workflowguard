@@ -183,7 +183,8 @@ export default function WorkflowListPage() {
             {workflows.map((workflow) => {
               const template = WORKFLOW_TEMPLATES.find((t) => t.id === workflow.template_id)
               return (
-                <Card key={workflow.id} className="hover:shadow-sm transition-shadow">
+                <Link href={`/workflows/${workflow.id}`}>
+                  <Card key={workflow.id} className="hover:shadow-md transition-shadow cursor-pointer">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -259,6 +260,7 @@ export default function WorkflowListPage() {
                     </div>
                   </CardContent>
                 </Card>
+                </Link>
               )
             })}
           </div>

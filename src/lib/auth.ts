@@ -28,7 +28,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   }),
   pages: {
     signIn: "/auth/login",
-    newUser: "/dashboard",
+    newUser: "/onboarding",
   },
   callbacks: {
     async session({ session, user }) {
