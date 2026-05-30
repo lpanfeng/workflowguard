@@ -1,17 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
 import { supabase } from "@/lib/supabase"
 import { NavBar } from "@/components/NavBar"
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates"
 import { toast } from "sonner"
-import { Loader2, Plus, Play, Pause, Trash2, ExternalLink, ChevronRight } from "lucide-react"
+import { Loader2, Plus, Play, Pause, Trash2, Search, ChevronRight, Filter } from "lucide-react"
 import Link from "next/link"
 
 type WorkflowRecord = {
@@ -25,11 +25,22 @@ type WorkflowRecord = {
   created_at: string
 }
 
+type FilterStatus = "all" | "active" | "inactive"
+
 const templateIcons: Record<string, string> = {
   "customer-service": "🎧",
   "content-publish": "📝",
   "data-entry": "📊",
 }
+
+const FILTER_OPTIONS: { label: string; value: FilterStatus }[] = [
+  { label: "全部", value: "all" },
+  { label: "活跃", value: "active" },
+  { label: "已停用", value: "inactive" },
+]
+
+const cn = (...classes: (string | boolean | undefined)[]) =>
+  classes.filter(Boolean).join(" ")
 
 export default function WorkflowListPage() {
   const { data: session, status } = useSession()
@@ -37,6 +48,8 @@ export default function WorkflowListPage() {
   const [workflows, setWorkflows] = useState<WorkflowRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>("all")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -67,6 +80,30 @@ export default function WorkflowListPage() {
 
     fetchWorkflows()
   }, [session?.user?.id])
+
+  const filteredWorkflows = useMemo(() => {
+    let result = workflows
+
+    // 状态筛选
+    if (statusFilter === "active") {
+      result = result.filter((w) => w.is_active)
+    } else if (statusFilter === "inactive") {
+      result = result.filter((w) => !w.is_active)
+    }
+
+    // 搜索
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase()
+      result = result.filter(
+        (w) =>
+          w.name.toLowerCase().includes(query) ||
+          (w.description && w.description.toLowerCase().includes(query)) ||
+          (WORKFLOW_TEMPLATES.find((t) => t.id === w.template_id)?.name.toLowerCase().includes(query))
+      )
+    }
+
+    return result
+  }, [workflows, statusFilter, searchQuery])
 
   const handleToggleActive = async (workflow: WorkflowRecord) => {
     try {
@@ -130,7 +167,11 @@ export default function WorkflowListPage() {
           <div>
             <h1 className="text-3xl font-bold">工作流</h1>
             <p className="text-muted-foreground mt-1">
-              管理和监控你的工作流
+              管理和监控你的工作流{filteredWorkflows.length !== workflows.length && (
+                <span className="ml-2 text-sm">
+                  （筛选结果: {filteredWorkflows.length}/{workflows.length}）
+                </span>
+              )}
             </p>
           </div>
           <Link href="/workflows/new">
@@ -142,7 +183,7 @@ export default function WorkflowListPage() {
         </div>
 
         {/* 概览统计 */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-4 mb-6">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-2xl">{workflows.length}</CardTitle>
@@ -163,6 +204,35 @@ export default function WorkflowListPage() {
           </Card>
         </div>
 
+        {/* 搜索和筛选栏 */}
+        <div className="flex items-center gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索工作流名称、描述或模板..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+            {FILTER_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setStatusFilter(option.value)}
+                className={cn(
+                  "px-3 py-1.5 text-sm rounded-md transition-colors",
+                  statusFilter === option.value
+                    ? "bg-background shadow-sm font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* 工作流列表 */}
         {workflows.length === 0 ? (
           <Card>
@@ -178,88 +248,121 @@ export default function WorkflowListPage() {
               </Link>
             </CardContent>
           </Card>
+        ) : filteredWorkflows.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-3xl mb-4">🔍</p>
+              <p className="text-lg font-medium mb-2">没有匹配的工作流</p>
+              <p className="text-muted-foreground mb-2">
+                {searchQuery
+                  ? `没有找到包含「${searchQuery}」的工作流`
+                  : "当前筛选条件下没有工作流"}
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchQuery("")
+                  setStatusFilter("all")
+                }}
+              >
+                清除筛选条件
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-3">
-            {workflows.map((workflow) => {
+            {filteredWorkflows.map((workflow) => {
               const template = WORKFLOW_TEMPLATES.find((t) => t.id === workflow.template_id)
               return (
-                <Link href={`/workflows/${workflow.id}`}>
-                  <Card key={workflow.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <span className="text-2xl">
-                          {templateIcons[workflow.template_id] ?? "📋"}
-                        </span>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium">{workflow.name}</p>
-                            {template && (
-                              <Badge variant="secondary" className="text-xs">
-                                {template.name}
+                <Link key={workflow.id} href={`/workflows/${workflow.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="text-2xl">
+                            {templateIcons[workflow.template_id] ?? "📋"}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">{workflow.name}</p>
+                              {template && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {template.name}
+                                </Badge>
+                              )}
+                              <Badge
+                                variant={workflow.is_active ? "default" : "outline"}
+                                className="text-xs"
+                              >
+                                {workflow.is_active ? "活跃" : "停用"}
                               </Badge>
+                            </div>
+                            {workflow.description && (
+                              <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                                {workflow.description}
+                              </p>
                             )}
-                            <Badge
-                              variant={workflow.is_active ? "default" : "outline"}
-                              className="text-xs"
-                            >
-                              {workflow.is_active ? "活跃" : "停用"}
-                            </Badge>
-                          </div>
-                          {workflow.description && (
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                              {workflow.description}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              创建于 {new Date(workflow.created_at).toLocaleDateString("zh-CN")}
                             </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            创建于 {new Date(workflow.created_at).toLocaleDateString("zh-CN")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleToggleActive(workflow)}
-                          title={workflow.is_active ? "停用" : "启用"}
-                        >
-                          {workflow.is_active ? (
-                            <Pause className="h-4 w-4" />
-                          ) : (
-                            <Play className="h-4 w-4" />
-                          )}
-                        </Button>
-                        {confirmDelete === workflow.id ? (
-                          <div className="flex gap-1">
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDelete(workflow.id)}
-                            >
-                              确认
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setConfirmDelete(null)}
-                            >
-                              取消
-                            </Button>
                           </div>
-                        ) : (
+                        </div>
+                        <div className="flex items-center gap-2" onClick={(e) => e.preventDefault()}>
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => setConfirmDelete(workflow.id)}
-                            title="删除"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleToggleActive(workflow)
+                            }}
+                            title={workflow.is_active ? "停用" : "启用"}
                           >
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            {workflow.is_active ? (
+                              <Pause className="h-4 w-4" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
                           </Button>
-                        )}
+                          {confirmDelete === workflow.id ? (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDelete(workflow.id)
+                                }}
+                              >
+                                确认
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setConfirmDelete(null)
+                                }}
+                              >
+                                取消
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setConfirmDelete(workflow.id)
+                              }}
+                              title="删除"
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
                 </Link>
               )
             })}
