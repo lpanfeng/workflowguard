@@ -406,8 +406,43 @@ export class WorkflowExecutor {
       },
     })
 
+    // 发送飞书审批通知（如果用户已绑定飞书）
+    try {
+      if (taskId) {
+        const { data: task } = await supabaseAdmin
+          .from("tasks")
+          .select("title, agent_result")
+          .eq("id", taskId)
+          .single()
+
+        const { data: workflow } = await supabaseAdmin
+          .from("workflows")
+          .select("name")
+          .eq("id", exec.workflowId)
+          .single()
+
+        if (task) {
+          const { notifyApprovalNeeded } = await import("@/app/api/feishu/webhook/route")
+          await notifyApprovalNeeded({
+            userId: exec.userId,
+            taskId,
+            taskTitle: task.title,
+            workflowName: workflow?.name ?? "未命名工作流",
+            confidence: "medium",
+            aiResult:
+              typeof task.agent_result === "string"
+                ? task.agent_result
+                : JSON.stringify(task.agent_result ?? "AI 已处理"),
+          })
+        }
+      }
+    } catch (notifyErr) {
+      // 飞书通知失败不影响主流程（例如未配置飞书环境变量）
+      console.error("[Executor] 飞书审批通知发送失败（可忽略）:", notifyErr)
+    }
+
     // 注意：这里不抛出错误，等待审批异步完成
-    // 审批完成时通过 WebSocket 或轮询触发 resumeFromApproval
+    // 审批完成时通过 API 触发 resumeFromApproval
   }
 
   /**

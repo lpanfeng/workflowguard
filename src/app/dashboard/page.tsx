@@ -12,6 +12,7 @@ import { AlertTriangle, CheckCircle2, Workflow, Loader2, FileText, Activity, Plu
 import { supabase } from "@/lib/supabase"
 import { NavBar } from "@/components/NavBar"
 import { TaskCreateDialog } from "@/components/TaskCreateDialog"
+import DashboardTrendChart from "@/components/features/DashboardTrendChart"
 
 type DashboardStats = {
   pendingApproval: number
@@ -280,6 +281,9 @@ export default function DashboardPage() {
             </Card>
           </Link>
         </div>
+
+        {/* 近 7 日趋势图 */}
+        <DashboardTrendChart userId={session.user.id} />
 
         {/* 最近活动 + 快速开始 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
