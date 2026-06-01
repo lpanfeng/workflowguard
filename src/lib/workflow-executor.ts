@@ -39,9 +39,11 @@ export type ExecutionStatus =
   | "step_completed"
   | "waiting_approval"
   | "approved"
+  | "retrying"
   | "completed"
   | "failed"
   | "cancelled"
+  | "timed_out"
 
 export interface StepExecution {
   stepId: string
@@ -52,6 +54,10 @@ export interface StepExecution {
   completedAt: string | null
   result?: unknown
   error?: string
+  retryCount?: number       // 已重试次数
+  maxRetries?: number       // 最大重试次数（默认 0）
+  retryDelayMs?: number     // 重试间隔毫秒（默认 5000）
+  timeoutMs?: number         // 步骤超时毫秒（默认 60000）
 }
 
 export interface WorkflowExecution {
@@ -198,26 +204,54 @@ export class WorkflowExecutor {
       return false
     }
 
+    // 设置默认的重试和超时参数
+    step.maxRetries = step.maxRetries ?? 0
+    step.retryDelayMs = step.retryDelayMs ?? 5000
+    step.timeoutMs = step.timeoutMs ?? 60000
+    step.retryCount = step.retryCount ?? 0
+
     // 更新状态
     step.status = "step_in_progress"
     step.startedAt = new Date().toISOString()
     await this.updateExecutionInDB({ current_step_index: stepIndex, steps: exec.steps })
 
+    // 使用 Promise.race 实现超时控制
+    const executeWithTimeout = async (): Promise<void> => {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`步骤 "${step.stepName}" 执行超时 (${step.timeoutMs!}ms)`)),
+          step.timeoutMs
+        )
+      )
+
+      const executePromise = (async () => {
+        switch (step.stepType) {
+          case "action":
+            await this.executeActionStep(step)
+            break
+          case "ai_execute":
+            await this.executeAIStep(step)
+            break
+          case "human_approve":
+            await this.waitForApproval(step)
+            return // 等待审批，不继续下一步（特殊处理见下方）
+          case "notify":
+            await this.executeNotifyStep(step)
+            break
+        }
+      })()
+
+      await Promise.race([executePromise, timeoutPromise])
+    }
+
     try {
-      switch (step.stepType) {
-        case "action":
-          await this.executeActionStep(step)
-          break
-        case "ai_execute":
-          await this.executeAIStep(step)
-          break
-        case "human_approve":
-          await this.waitForApproval(step)
-          return true // 等待审批，不继续下一步
-        case "notify":
-          await this.executeNotifyStep(step)
-          break
+      // 对 human_approve 不进行超时和重试（等待人工审批是无限期）
+      if (step.stepType === "human_approve") {
+        await this.waitForApproval(step)
+        return true
       }
+
+      await executeWithTimeout()
 
       // 步骤完成，进入下一步
       step.status = "step_completed"
@@ -230,14 +264,50 @@ export class WorkflowExecutor {
       return this.executeNextStep()
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "未知错误"
-      step.status = "failed"
+      const isTimeout = errorMsg.includes("执行超时")
+
+      // 检查是否有重试机会
+      if (step.retryCount! < step.maxRetries!) {
+        step.retryCount!++
+        step.status = "retrying"
+        step.error = `${isTimeout ? "超时" : "失败"} (第 ${step.retryCount}/${step.maxRetries} 次重试): ${errorMsg}`
+
+        await this.updateExecutionInDB({
+          status: "retrying" as ExecutionStatus,
+          steps: exec.steps,
+        })
+
+        await supabaseAdmin.from("audit_logs").insert({
+          user_id: exec.userId,
+          workflow_id: exec.workflowId,
+          action: "step_retrying",
+          details: {
+            execution_id: exec.id,
+            step_index: stepIndex,
+            step_name: step.stepName,
+            retry_count: step.retryCount,
+            max_retries: step.maxRetries,
+            error: errorMsg,
+          },
+        })
+
+        // 等待重试间隔
+        await new Promise((resolve) => setTimeout(resolve, step.retryDelayMs!))
+
+        // 重新执行当前步骤
+        return this.executeNextStep()
+      }
+
+      // 重试用尽，标记为失败
+      const finalStatus: ExecutionStatus = isTimeout ? "timed_out" : "failed"
+      step.status = finalStatus
       step.error = errorMsg
-      exec.status = "failed"
+      exec.status = finalStatus
       exec.error = errorMsg
       exec.completedAt = new Date().toISOString()
 
       await this.updateExecutionInDB({
-        status: "failed",
+        status: finalStatus,
         error: errorMsg,
         completed_at: exec.completedAt,
         steps: exec.steps,
@@ -252,6 +322,8 @@ export class WorkflowExecutor {
           step_index: stepIndex,
           step_name: step.stepName,
           error: errorMsg,
+          is_timeout: isTimeout,
+          retries_exhausted: true,
         },
       })
 
@@ -483,7 +555,7 @@ export class WorkflowExecutor {
       throw new Error(`找不到步骤: ${stepId}`)
     }
 
-    if (step.status !== "waiting_approval") {
+    if (!["waiting_approval", "retrying"].includes(step.status)) {
       throw new Error(`步骤 ${stepId} 状态为 ${step.status}，无法恢复`)
     }
 
