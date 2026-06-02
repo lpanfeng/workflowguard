@@ -14,7 +14,7 @@
 //   - cron: 定时触发（cron 表达式）
 
 import { createClient } from "@supabase/supabase-js"
-import { getTemplateById, type WorkflowStep } from "./workflow-templates"
+import { getTemplateById, getApprovalStepConfig, type WorkflowStep, type ApproverConfig, type ApprovalStepConfig } from "./workflow-templates"
 
 // ====================
 // Types
@@ -45,6 +45,23 @@ export type ExecutionStatus =
   | "cancelled"
   | "timed_out"
 
+/**
+ * 多级审批状态跟踪
+ */
+export interface ApprovalLevelStatus {
+  level: number
+  /** 当前级别的审批状态 */
+  status: "pending" | "approved" | "rejected"
+  /** 审批人信息 */
+  approver: ApproverConfig
+  /** 实际处理人（审批时的 user_id） */
+  handledBy?: string
+  /** 审批意见 */
+  comment?: string
+  /** 审批时间 */
+  handledAt?: string
+}
+
 export interface StepExecution {
   stepId: string
   stepName: string
@@ -58,6 +75,10 @@ export interface StepExecution {
   maxRetries?: number       // 最大重试次数（默认 0）
   retryDelayMs?: number     // 重试间隔毫秒（默认 5000）
   timeoutMs?: number         // 步骤超时毫秒（默认 60000）
+  /** 多级审批状态 */
+  approvalStatus?: ApprovalLevelStatus[]
+  /** 当前等待哪一级审批（0-indexed） */
+  currentApprovalLevel?: number
 }
 
 export interface WorkflowExecution {
@@ -442,11 +463,43 @@ export class WorkflowExecutor {
   }
 
   /**
-   * 等待人工审批
+   * 等待人工审批（支持多级审批链）
    */
   private async waitForApproval(step: StepExecution): Promise<void> {
     const exec = this.execution!
     console.log(`[Executor] 等待人工审批: ${step.stepName}`)
+
+    // 初始化多级审批状态
+    const { data: workflow } = await supabaseAdmin
+      .from("workflows")
+      .select("template_id")
+      .eq("id", exec.workflowId)
+      .single()
+
+    const templateId = workflow?.template_id ?? ""
+    const template = getTemplateById(templateId)
+    const approvalConfig = template ? getApprovalStepConfig(template, step.stepId) : null
+
+    if (approvalConfig && approvalConfig.approvers.length > 0) {
+      step.approvalStatus = approvalConfig.approvers.map((approver, idx) => ({
+        level: idx,
+        status: "pending" as const,
+        approver,
+      }))
+      step.currentApprovalLevel = 0
+      console.log(
+        `[Executor] 多级审批: ${approvalConfig.mode} 模式, ${approvalConfig.levels} 级, 当前第 1 级`
+      )
+    } else {
+      step.approvalStatus = [
+        {
+          level: 0,
+          status: "pending" as const,
+          approver: { type: "role" as const, role: "default", label: "默认审批人" },
+        },
+      ]
+      step.currentApprovalLevel = 0
+    }
 
     // 更新状态为 waiting_approval
     exec.status = "waiting_approval"
@@ -543,9 +596,19 @@ export class WorkflowExecutor {
   }
 
   /**
-   * 从审批中恢复执行（审批通过后调用）
+   * 从审批中恢复执行（审批通过后调用，支持多级审批链）
    */
-  async resumeFromApproval(stepId: string, approved: boolean, modifiedData?: unknown): Promise<void> {
+  async resumeFromApproval(
+    stepId: string,
+    approved: boolean,
+    params?: {
+      modifiedData?: unknown
+      /** 审批人 user_id */
+      reviewerId?: string
+      /** 审批意见 */
+      comment?: string
+    }
+  ): Promise<void> {
     if (!this.execution) throw new Error("没有正在进行的执行")
 
     const exec = this.execution
@@ -559,10 +622,65 @@ export class WorkflowExecutor {
       throw new Error(`步骤 ${stepId} 状态为 ${step.status}，无法恢复`)
     }
 
+    const currentLevel = step.currentApprovalLevel ?? 0
+
     if (approved) {
+      // 标记当前级别已通过
+      if (step.approvalStatus && step.approvalStatus[currentLevel]) {
+        step.approvalStatus[currentLevel].status = "approved"
+        step.approvalStatus[currentLevel].handledBy = params?.reviewerId
+        step.approvalStatus[currentLevel].comment = params?.comment
+        step.approvalStatus[currentLevel].handledAt = new Date().toISOString()
+      }
+
+      // 检查是否还有下一级审批
+      const totalLevels = step.approvalStatus?.length ?? 1
+      const nextLevel = currentLevel + 1
+
+      if (nextLevel < totalLevels && step.approvalStatus) {
+        // 还有下一级，继续等待下一级审批
+        step.currentApprovalLevel = nextLevel
+        step.approvalStatus[nextLevel].status = "pending"
+        exec.status = "waiting_approval"
+
+        await this.updateExecutionInDB({
+          status: "waiting_approval" as ExecutionStatus,
+          steps: exec.steps,
+        })
+
+        // 获取工作流信息用于通知
+        const { data: workflow } = await supabaseAdmin
+          .from("workflows")
+          .select("name")
+          .eq("id", exec.workflowId)
+          .single()
+
+        // 发送飞书通知给下一级审批人
+        await supabaseAdmin.from("audit_logs").insert({
+          user_id: exec.userId,
+          workflow_id: exec.workflowId,
+          action: "approval_level_passed",
+          details: {
+            execution_id: exec.id,
+            step_id: stepId,
+            step_name: step.stepName,
+            level: currentLevel,
+            next_level: nextLevel,
+            total_levels: totalLevels,
+            approver_label: step.approvalStatus[nextLevel].approver.label,
+          },
+        })
+
+        console.log(
+          `[Executor] 第 ${currentLevel + 1} 级审批通过，进入第 ${nextLevel + 1} 级`
+        )
+        return // 继续等待，不继续执行工作流
+      }
+
+      // 所有级别审批通过，继续执行工作流
       step.status = "approved"
       step.completedAt = new Date().toISOString()
-      step.result = modifiedData ?? step.result
+      step.result = params?.modifiedData ?? step.result
 
       exec.status = "running"
       exec.currentStepIndex = exec.steps.indexOf(step) + 1
@@ -573,13 +691,44 @@ export class WorkflowExecutor {
         steps: exec.steps,
       })
 
+      await supabaseAdmin.from("audit_logs").insert({
+        user_id: exec.userId,
+        workflow_id: exec.workflowId,
+        action: "approval_chain_completed",
+        details: {
+          execution_id: exec.id,
+          step_id: stepId,
+          step_name: step.stepName,
+          total_levels: totalLevels,
+          all_approved: true,
+        },
+      })
+
       // 继续执行下一步
       await this.executeNextStep()
     } else {
+      // 驳回逻辑：根据 rejectStrategy 决定行为
+      // 默认 reject_all：任一驳回即终止
       step.status = "failed"
-      step.error = "审批被驳回"
+      step.error = params?.comment
+        ? `审批被驳回: ${params.comment}`
+        : "审批被驳回"
+
+      // 标记当前级别和所有待审批级别为 rejected
+      if (step.approvalStatus) {
+        step.approvalStatus[currentLevel].status = "rejected"
+        step.approvalStatus[currentLevel].handledBy = params?.reviewerId
+        step.approvalStatus[currentLevel].comment = params?.comment
+        step.approvalStatus[currentLevel].handledAt = new Date().toISOString()
+
+        // 标记后续级别也 rejected
+        for (let i = currentLevel + 1; i < step.approvalStatus.length; i++) {
+          step.approvalStatus[i].status = "rejected"
+        }
+      }
+
       exec.status = "failed"
-      exec.error = `步骤 ${step.stepName} 被驳回`
+      exec.error = step.error
       exec.completedAt = new Date().toISOString()
 
       await this.updateExecutionInDB({
@@ -597,6 +746,8 @@ export class WorkflowExecutor {
           execution_id: exec.id,
           step_id: stepId,
           step_name: step.stepName,
+          level: currentLevel,
+          comment: params?.comment,
         },
       })
     }
@@ -842,5 +993,5 @@ export async function handleTaskApprovalResume(
     completedAt: execRecord.completed_at,
   }
 
-  await executor.resumeFromApproval(task.step_id, action === "approve", modifiedResult)
+  await executor.resumeFromApproval(task.step_id, action === "approve", { modifiedData: modifiedResult })
 }

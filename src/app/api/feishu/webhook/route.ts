@@ -3,6 +3,12 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import {
+  sendMessage,
+  buildApprovalCard,
+  buildResultCard,
+  MessageType,
+} from "@/lib/feishu"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,155 +17,8 @@ const supabaseAdmin = createClient(
 )
 
 // ====================
-// 飞书卡片消息模板
+// 用户飞书 ID 查询
 // ====================
-
-interface TaskApprovalCard {
-  taskId: string
-  taskTitle: string
-  workflowName: string
-  confidence: string
-  aiResult: string
-  createdAt: string
-}
-
-/**
- * 生成任务待审批的飞书消息卡片
- */
-function buildApprovalCard(data: TaskApprovalCard) {
-  return {
-    msg_type: "interactive",
-    content: JSON.stringify({
-      config: { wide_screen_mode: true },
-      header: {
-        title: { tag: "plain_text", content: "📋 任务待审批" },
-        template: "orange",
-      },
-      elements: [
-        {
-          tag: "div",
-          text: {
-            tag: "lark_md",
-            content: `**${data.taskTitle}**\n\n工作流：${data.workflowName}\n置信度：${data.confidence}\n创建时间：${data.createdAt}`,
-          },
-        },
-        {
-          tag: "div",
-          text: {
-            tag: "lark_md",
-            content: `**AI 生成结果：**\n${data.aiResult.slice(0, 500)}`,
-          },
-        },
-        {
-          tag: "action",
-          actions: [
-            {
-              tag: "button",
-              text: { tag: "plain_text", content: "✅ 通过" },
-              type: "primary",
-              value: { action: "approve", task_id: data.taskId },
-            },
-            {
-              tag: "button",
-              text: { tag: "plain_text", content: "❌ 驳回" },
-              type: "danger",
-              value: { action: "reject", task_id: data.taskId },
-            },
-          ],
-        },
-      ],
-    }),
-  }
-}
-
-/**
- * 构建审批结果通知卡片
- */
-function buildResultCard(params: {
-  taskTitle: string
-  action: "approved" | "rejected"
-  comment?: string
-}) {
-  const isApproved = params.action === "approved"
-  return {
-    msg_type: "interactive",
-    content: JSON.stringify({
-      config: { wide_screen_mode: true },
-      header: {
-        title: {
-          tag: "plain_text",
-          content: isApproved ? "✅ 任务已通过审批" : "❌ 任务已被驳回",
-        },
-        template: isApproved ? "green" : "red",
-      },
-      elements: [
-        {
-          tag: "div",
-          text: {
-            tag: "lark_md",
-            content: `**${params.taskTitle}**\n\n审批结果：${isApproved ? "已通过 ✅" : "已驳回 ❌"}\n${params.comment ? `审批意见：${params.comment}` : ""}`,
-          },
-        },
-      ],
-    }),
-  }
-}
-
-/**
- * 发送飞书消息（通过飞书开放平台 API）
- */
-async function sendFeishuMessage(
-  receiveId: string,
-  receiveIdType: "open_id" | "user_id" | "chat_id",
-  cardPayload: object
-) {
-  const appId = process.env.FEISHU_APP_ID
-  const appSecret = process.env.FEISHU_APP_SECRET
-
-  if (!appId || !appSecret) {
-    console.warn("[Feishu Bot] 未配置 FEISHU_APP_ID / FEISHU_APP_SECRET，跳过消息发送")
-    return null
-  }
-
-  try {
-    // 1. 获取 tenant_access_token
-    const tokenRes = await fetch("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ app_id: appId, app_secret: appSecret }),
-    })
-    const tokenData = await tokenRes.json()
-    if (!tokenData.tenant_access_token) {
-      throw new Error(`获取 tenant_access_token 失败: ${JSON.stringify(tokenData)}`)
-    }
-
-    // 2. 发送消息
-    const msgRes = await fetch(
-      `https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=${receiveIdType}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tokenData.tenant_access_token}`,
-        },
-        body: JSON.stringify({
-          receive_id: receiveId,
-          ...cardPayload,
-        }),
-      }
-    )
-    const msgData = await msgRes.json()
-    if (msgData.code !== 0) {
-      console.error("[Feishu Bot] 消息发送失败:", msgData)
-      return null
-    }
-    console.log("[Feishu Bot] 消息发送成功:", msgData.data?.message_id)
-    return msgData.data
-  } catch (err) {
-    console.error("[Feishu Bot] 发送消息出错:", err)
-    return null
-  }
-}
 
 /**
  * 获取用户的飞书 open_id（从 profiles 表查询 feishu_open_id 字段）
@@ -195,11 +54,12 @@ async function handleMessageCommand(openId: string, text: string) {
   const user = await getUserByFeishuOpenId(openId)
   if (!user) {
     // 用户未绑定，发送绑定提示
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: "⚠️ 您尚未绑定 WorkflowGuard 账号。\n请登录 WorkflowGuard → 设置 → 绑定飞书账号后重试。",
-      }),
+      },
     })
     return
   }
@@ -208,9 +68,10 @@ async function handleMessageCommand(openId: string, text: string) {
 
   // 帮助指令
   if (cmd === "帮助" || cmd === "help" || cmd === "h") {
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: `🤖 **WorkflowGuard 飞书 Bot 使用指南**
 
 📋 **我的待审批** — 查看等待你审批的任务列表
@@ -218,7 +79,7 @@ async function handleMessageCommand(openId: string, text: string) {
 ❌ **驳回 <任务ID> <原因>** — 驳回任务并附上原因
 📊 **任务统计** — 查看今日任务概况
 🔗 **登录控制台** — 打开 WorkflowGuard 控制台`,
-      }),
+      },
     })
     return
   }
@@ -237,11 +98,10 @@ async function handleMessageCommand(openId: string, text: string) {
       .limit(10)
 
     if (!tasks || tasks.length === 0) {
-      await sendFeishuMessage(openId, "open_id", {
-        msg_type: "text",
-        content: JSON.stringify({
-          text: "🎉 没有待审批的任务，一切正常！",
-        }),
+      await sendMessage({
+        receiveId: openId,
+        receiveIdType: "open_id",
+        content: { text: "🎉 没有待审批的任务，一切正常！" },
       })
       return
     }
@@ -253,11 +113,12 @@ async function handleMessageCommand(openId: string, text: string) {
       )
       .join("\n\n")
 
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: `📋 **待审批任务（${tasks.length} 项）**\n\n${taskList}\n\n使用「通过 <任务ID>」或「驳回 <任务ID> <原因>」处理。`,
-      }),
+      },
     })
     return
   }
@@ -286,11 +147,12 @@ async function handleMessageCommand(openId: string, text: string) {
           .gte("created_at", today),
       ])
 
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: `📊 **今日任务统计**\n\n⏳ 待审批：${pending}\n✅ 今日通过：${approvedToday}\n❌ 今日驳回：${rejectedToday}`,
-      }),
+      },
     })
     return
   }
@@ -313,21 +175,23 @@ async function handleMessageCommand(openId: string, text: string) {
 
   // 打开控制台
   if (cmd === "登录控制台" || cmd === "控制台") {
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: "🔗 WorkflowGuard 控制台：https://workflowguard.cn\n\n（请使用浏览器打开）",
-      }),
+      },
     })
     return
   }
 
   // 未知指令
-  await sendFeishuMessage(openId, "open_id", {
-    msg_type: "text",
-    content: JSON.stringify({
-      text: `❓ 未知指令，输入「帮助」查看可用命令。`,
-    }),
+  await sendMessage({
+    receiveId: openId,
+    receiveIdType: "open_id",
+    content: {
+      text: "❓ 未知指令，输入「帮助」查看可用命令。",
+    },
   })
 }
 
@@ -342,35 +206,35 @@ async function handleApprovalAction(
   comment?: string
 ) {
   // 调用审批 API
-  const res = await fetch(
-    `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/tasks/approve`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId, action, userId, comment }),
-    }
-  )
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
+  const res = await fetch(`${appUrl}/api/tasks/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ taskId, action, userId, comment }),
+  })
 
   const data = await res.json()
 
   if (!data.success) {
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: `⚠️ 操作失败：${data.error || "未知错误"}`,
-      }),
+      },
     })
     return
   }
 
   const resultText =
-    action === "approve" ? `✅ 任务已通过审批${comment ? `（意见：${comment}）` : ""}` : `❌ 任务已驳回（原因：${comment || "未提供"}）`
+    action === "approve"
+      ? `✅ 任务已通过审批${comment ? `（意见：${comment}）` : ""}`
+      : `❌ 任务已驳回（原因：${comment || "未提供"}）`
 
-  await sendFeishuMessage(openId, "open_id", {
-    msg_type: "text",
-    content: JSON.stringify({
-      text: resultText,
-    }),
+  await sendMessage({
+    receiveId: openId,
+    receiveIdType: "open_id",
+    content: { text: resultText },
   })
 }
 
@@ -383,11 +247,12 @@ async function handleCardAction(
 ) {
   const user = await getUserByFeishuOpenId(openId)
   if (!user) {
-    await sendFeishuMessage(openId, "open_id", {
-      msg_type: "text",
-      content: JSON.stringify({
+    await sendMessage({
+      receiveId: openId,
+      receiveIdType: "open_id",
+      content: {
         text: "⚠️ 您尚未绑定 WorkflowGuard 账号，无法处理审批。\n请登录 WorkflowGuard → 设置 → 绑定飞书账号。",
-      }),
+      },
     })
     return
   }
@@ -406,11 +271,15 @@ async function handleCardAction(
       // 发送通知给任务创建者
       const creatorOpenId = await getUserFeishuId(task.user_id)
       if (creatorOpenId && creatorOpenId !== openId) {
-        await sendFeishuMessage(creatorOpenId, "open_id", {
-          ...buildResultCard({
-            taskTitle: task.title,
-            action: value.action === "approve" ? "approved" : "rejected",
-          }),
+        const card = buildResultCard({
+          taskTitle: task.title,
+          action: value.action === "approve" ? "approved" : "rejected",
+          approverName: user.name,
+        })
+        await sendMessage({
+          receiveId: creatorOpenId,
+          receiveIdType: "open_id",
+          content: { card },
         })
       }
     }
@@ -522,6 +391,8 @@ export async function notifyApprovalNeeded(params: {
   workflowName: string
   confidence: string
   aiResult: string
+  submitterName?: string
+  priority?: "high" | "medium" | "low"
 }) {
   const openId = await getUserFeishuId(params.userId)
   if (!openId) {
@@ -529,27 +400,34 @@ export async function notifyApprovalNeeded(params: {
     return null
   }
 
-  const card = buildApprovalCard({
+  const cardPayload = buildApprovalCard({
     taskId: params.taskId,
     taskTitle: params.taskTitle,
     workflowName: params.workflowName,
     confidence: params.confidence,
     aiResult: params.aiResult,
     createdAt: new Date().toLocaleString("zh-CN"),
+    submitterName: params.submitterName,
+    priority: params.priority,
   })
 
-  return sendFeishuMessage(openId, "open_id", card)
+  return sendMessage({
+    receiveId: openId,
+    receiveIdType: "open_id",
+    content: { card: cardPayload },
+  })
 }
 
 /**
  * 发送测试消息（用于测试飞书 Bot 连接）
  */
 export async function sendTestMessage(openId: string) {
-  return sendFeishuMessage(openId, "open_id", {
-    msg_type: "text",
-    content: JSON.stringify({
+  return sendMessage({
+    receiveId: openId,
+    receiveIdType: "open_id",
+    content: {
       text: "✅ WorkflowGuard 飞书 Bot 已连接！\n使用「创建任务 <描述>」来创建新任务。\n输入「帮助」查看更多指令。",
-    }),
+    },
   })
 }
 

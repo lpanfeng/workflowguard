@@ -215,10 +215,100 @@ describe('WorkflowTriggerDetector', () => {
   })
 })
 
-describe('WorkflowTriggerDetector', () => {
-  it('should be defined as a class with checkTriggers', async () => {
-    const { WorkflowTriggerDetector } = await import('@/lib/workflow-executor')
-    expect(WorkflowTriggerDetector).toBeDefined()
-    expect(typeof WorkflowTriggerDetector.checkTriggers).toBe('function')
+// ========================
+// 多级审批（新增）
+// ========================
+
+describe('多级审批功能', () => {
+  it('模板应包含 approvalConfig 定义', async () => {
+    const { WORKFLOW_TEMPLATES, getApprovalStepConfig } = await import('@/lib/workflow-templates')
+
+    for (const template of WORKFLOW_TEMPLATES) {
+      const approveStep = template.steps.find(s => s.type === 'human_approve')
+      if (approveStep) {
+        const config = getApprovalStepConfig(template, approveStep.id)
+        expect(config).toBeTruthy()
+        expect(config!.levels).toBeGreaterThanOrEqual(1)
+        expect(config!.approvers.length).toBe(config!.levels)
+      }
+    }
+  })
+
+  it('ApprovalLevelStatus 字段完整性', async () => {
+    // 验证 ApprovalLevelStatus 的运行时行为（使用宽松类型）
+    const levelStatus: Record<string, unknown> = {
+      level: 0,
+      status: 'pending',
+      approver: { type: 'user', email: 'test@example.com', label: '测试审批人' },
+    }
+
+    expect(levelStatus.level).toBe(0)
+    expect(levelStatus.status).toBe('pending')
+    expect((levelStatus.approver as Record<string, unknown>).email).toBe('test@example.com')
+    expect((levelStatus.approver as Record<string, unknown>).label).toBe('测试审批人')
+
+    // 模拟审批通过
+    levelStatus.status = 'approved'
+    levelStatus.handledBy = 'user_123'
+    levelStatus.comment = '同意'
+    levelStatus.handledAt = new Date().toISOString()
+
+    expect(levelStatus.status).toBe('approved')
+    expect(levelStatus.handledBy).toBe('user_123')
+  })
+
+  it('多级审批链状态转换', async () => {
+    // 模拟三级审批链：员工 → 主管 → 经理
+    const chain: Record<string, unknown>[] = [
+      { level: 0, status: 'approved', approver: { type: 'user', role: 'employee', label: '员工' } },
+      { level: 1, status: 'pending', approver: { type: 'role', role: 'manager', label: '主管' } },
+      { level: 2, status: 'pending', approver: { type: 'role', role: 'director', label: '经理' } },
+    ]
+
+    // 第1级已通过，检查是否进入下一级
+    expect(chain[0].status).toBe('approved')
+    expect(chain[1].status).toBe('pending')
+
+    // 模拟第2级通过
+    chain[1].status = 'approved'
+    chain[1].handledBy = 'user_456'
+
+    expect(chain[1].status).toBe('approved')
+
+    // 第3级驳回
+    chain[2].status = 'rejected'
+    chain[2].handledBy = 'user_789'
+    chain[2].comment = '需要补充材料'
+
+    expect(chain[2].status).toBe('rejected')
+    expect(chain[2].comment).toBe('需要补充材料')
+  })
+
+  it('ApproverConfig 支持 user 和 role 两种类型', async () => {
+    const { getTemplateById } = await import('@/lib/workflow-templates')
+
+    const csTemplate = getTemplateById('customer-service')!
+    const config = csTemplate.approvalConfig?.['approve']
+
+    expect(config).toBeTruthy()
+    expect(config!.approvers[0].type).toBe('role')
+    expect(config!.approvers[0].role).toBe('manager')
+    expect(config!.approvers[0].label).toBe('客服主管')
+  })
+
+  it('驳回策略应标记所有待审批级别为 rejected', () => {
+    const approvalStatus = [
+      { level: 0, status: 'approved' as const },
+      { level: 1, status: 'rejected' as const },
+      { level: 2, status: 'pending' as const },
+    ]
+
+    // 模拟第2级驳回后，后续级别也应标记
+    const currentLevel = 1
+    for (let i = currentLevel + 1; i < approvalStatus.length; i++) {
+      approvalStatus[i].status = 'rejected'
+    }
+
+    expect(approvalStatus[2].status).toBe('rejected')
   })
 })

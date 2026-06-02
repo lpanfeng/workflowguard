@@ -8,6 +8,31 @@ export interface WorkflowStep {
   type: 'ai_execute' | 'human_approve' | 'notify' | 'action'
 }
 
+// 审批人配置：支持指定审批人或审批角色
+export interface ApproverConfig {
+  type: 'user' | 'role'
+  /** 当 type='user' 时，指定审批人的邮箱 */
+  email?: string
+  /** 当 type='user' 时，指定审批人的 ID */
+  userId?: string
+  /** 当 type='role' 时，指定角色名称（如 manager/finance/legal） */
+  role?: string
+  /** 显示名称 */
+  label?: string
+}
+
+// 扩展审批步骤：支持多级审批链
+export interface ApprovalStepConfig {
+  /** 审批级数，默认为 1 */
+  levels: number
+  /** 每级审批人配置（长度为 levels） */
+  approvers: ApproverConfig[]
+  /** 审批模式：sequential（顺序审批）/ parallel（并行审批） */
+  mode: 'sequential' | 'parallel'
+  /** 驳回策略：reject_all（任一驳回即终止）/ reapprove（退回上一级重审） */
+  rejectStrategy: 'reject_all' | 'reapprove'
+}
+
 export interface WorkflowTemplate {
   id: string
   name: string
@@ -16,6 +41,8 @@ export interface WorkflowTemplate {
   category: string
   steps: WorkflowStep[]
   promptTemplate: string
+  /** 审批步骤配置（按步骤 id 索引） */
+  approvalConfig?: Record<string, ApprovalStepConfig>
 }
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
@@ -39,6 +66,14 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 1. 回复内容
 2. 需要确认的关键信息
 3. 置信度（高/中/低）`,
+    approvalConfig: {
+      'approve': {
+        levels: 1,
+        approvers: [{ type: 'role', role: 'manager', label: '客服主管' }],
+        mode: 'sequential',
+        rejectStrategy: 'reject_all',
+      },
+    },
   },
   {
     id: 'content-publish',
@@ -61,6 +96,14 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 2. 正文内容
 3. 关键要点总结
 4. 置信度（高/中/低）`,
+    approvalConfig: {
+      'edit_approve': {
+        levels: 1,
+        approvers: [{ type: 'role', role: 'editor', label: '责任编辑' }],
+        mode: 'sequential',
+        rejectStrategy: 'reject_all',
+      },
+    },
   },
   {
     id: 'data-entry',
@@ -82,9 +125,27 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 1. 提取的数据（表格形式）
 2. 不确定的字段
 3. 置信度（高/中/低）`,
+    approvalConfig: {
+      'confirm': {
+        levels: 1,
+        approvers: [{ type: 'user', label: '数据确认人' }],
+        mode: 'sequential',
+        rejectStrategy: 'reject_all',
+      },
+    },
   },
 ]
 
 export function getTemplateById(id: string): WorkflowTemplate | undefined {
   return WORKFLOW_TEMPLATES.find((t) => t.id === id)
+}
+
+/**
+ * 获取模板审批步骤的完整配置（含多级审批链信息）
+ */
+export function getApprovalStepConfig(
+  template: WorkflowTemplate,
+  stepId: string
+): ApprovalStepConfig | null {
+  return template.approvalConfig?.[stepId] ?? null
 }
