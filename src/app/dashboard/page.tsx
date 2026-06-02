@@ -12,6 +12,7 @@ import { AlertTriangle, CheckCircle2, Workflow, Loader2, FileText, Activity, Plu
 import { supabase } from "@/lib/supabase"
 import { NavBar } from "@/components/NavBar"
 import { TaskCreateDialog } from "@/components/TaskCreateDialog"
+import { ensureDemoWorkflow } from "@/lib/demo-setup"
 import DashboardTrendChart from "@/components/features/DashboardTrendChart"
 
 type DashboardStats = {
@@ -55,6 +56,8 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (session?.user?.id) {
+      // 后台静默创建 Demo 工作流（新用户首次登录）
+      ensureDemoWorkflow(session.user.id)
       loadStats()
       loadRecentTasks()
     }
