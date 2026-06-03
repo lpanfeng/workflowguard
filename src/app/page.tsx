@@ -17,6 +17,8 @@ export default function Home() {
             <Link href="#templates" className="hover:text-foreground transition-colors">模板</Link>
             <Link href="#features" className="hover:text-foreground transition-colors">功能</Link>
             <Link href="/pricing" className="hover:text-foreground transition-colors">定价</Link>
+            <Link href="/dashboard" className="hover:text-foreground transition-colors">仪表盘</Link>
+            <Link href="/workflows/new" className="hover:text-foreground transition-colors">创建工作流</Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/auth/login">
