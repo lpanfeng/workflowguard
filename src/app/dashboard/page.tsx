@@ -14,6 +14,7 @@ import { NavBar } from "@/components/NavBar"
 import { TaskCreateDialog } from "@/components/TaskCreateDialog"
 import { ensureDemoWorkflow } from "@/lib/demo-setup"
 import DashboardTrendChart from "@/components/features/DashboardTrendChart"
+import ExecutionTimeline from "@/components/features/ExecutionTimeline"
 
 type DashboardStats = {
   pendingApproval: number
@@ -290,72 +291,8 @@ export default function DashboardPage() {
 
         {/* 最近活动 + 快速开始 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 最近活动 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                最近活动
-              </CardTitle>
-              <CardDescription>近期的任务和操作记录</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {recentTasks.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">还没有活动记录</p>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    点击右下角的 <Plus className="h-3 w-3 inline" /> 按钮创建你的第一个任务
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.location.href = "/workflows/new"}
-                  >
-                    先创建工作流
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {recentTasks.map((task) => (
-                    <Link
-                      key={task.id}
-                      href="/tasks"
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <span className="text-lg">
-                        {TYPE_ICONS[task.type] ?? "📋"}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{task.title}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {TYPE_LABELS[task.type] ?? task.type}
-                          {" · "}
-                          {new Date(task.created_at).toLocaleString("zh-CN", {
-                            month: "short",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${STATUS_BADGES[task.status]?.color ?? ""}`}
-                      >
-                        {STATUS_BADGES[task.status]?.label ?? task.status}
-                      </Badge>
-                    </Link>
-                  ))}
-                  <Link
-                    href="/tasks"
-                    className="block text-sm text-primary hover:underline pt-2 text-center"
-                  >
-                    查看全部任务 →
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* 执行时间线 */}
+          <ExecutionTimeline userId={session.user.id} refreshKey={Date.now()} />
 
           {/* 快速开始 */}
           <Card>
