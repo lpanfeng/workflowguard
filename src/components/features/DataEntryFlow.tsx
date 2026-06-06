@@ -239,6 +239,28 @@ export default function DataEntryFlow({ workflowId, userId }: DataEntryConfig) {
         throw new Error(taskError.message)
       }
 
+      // 通知工作流完成 API
+      try {
+        await fetch("/api/workflows/complete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            workflowId,
+            templateId: "data-entry",
+            result: {
+              status: "confirmed",
+              template: selectedTemplate.name,
+              fieldsCount: extractedFields.length,
+              confirmedFields: extractedFields.reduce((acc, f) => ({ ...acc, [f.key]: f.value }), {}),
+              confirmedAt: new Date().toISOString(),
+            },
+          }),
+        })
+      } catch {
+        // 非关键路径，不影响主流程
+        console.warn("通知工作流完成 API 失败")
+      }
+
       // 写入审计日志
       await supabase
         .from("audit_logs")
