@@ -25,7 +25,33 @@ import {
   TrendingUp,
   Workflow,
   ShieldCheck,
+  Key,
+  Copy,
+  Trash2,
+  Plus,
+  Bot,
+  Globe,
 } from "lucide-react"
+
+interface ApiKey {
+  id: string
+  name: string
+  key_value: string
+  last_used_at: string | null
+  expires_at: string | null
+  is_revoked: boolean
+  created_at: string
+}
+
+interface WebhookConfig {
+  id: string
+  name: string
+  url: string
+  events: string[]
+  is_active: boolean
+  last_triggered_at: string | null
+  last_status: string | null
+}
 
 export default function SettingsPage() {
   const { data: session, status } = useSession()
@@ -33,6 +59,27 @@ export default function SettingsPage() {
   const [feishuWebhookUrl, setFeishuWebhookUrl] = useState("")
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+
+  // API 密钥
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
+  const [newKeyName, setNewKeyName] = useState("")
+  const [generatingKey, setGeneratingKey] = useState(false)
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null)
+  const [loadingKeys, setLoadingKeys] = useState(false)
+
+  // Webhook 配置
+  const [webhooks, setWebhooks] = useState<WebhookConfig[]>([])
+  const [showAddWebhook, setShowAddWebhook] = useState(false)
+  const [newWebhookName, setNewWebhookName] = useState("")
+  const [newWebhookUrl, setNewWebhookUrl] = useState("")
+
+  // 飞书集成状态
+  const [feishuStatus, setFeishuStatus] = useState<{
+    webhookUrl: string | null
+    isBound: boolean
+    feishuOpenId: string | null
+    boundAt: string | null
+  }>({ webhookUrl: null, isBound: false, feishuOpenId: null, boundAt: null })
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -43,6 +90,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (session?.user?.id) {
       loadSettings()
+      loadApiKeys()
+      loadWebhooks()
     }
   }, [session])
 
@@ -50,22 +99,53 @@ export default function SettingsPage() {
     try {
       const { data } = await supabase
         .from("profiles")
-        .select("webhook_url")
+        .select("webhook_url, feishu_open_id, feishu_bound_at")
         .eq("id", session!.user!.id)
         .single()
-      if (data?.webhook_url) {
-        setFeishuWebhookUrl(data.webhook_url)
+      if (data) {
+        setFeishuWebhookUrl(data.webhook_url ?? "")
+        setFeishuStatus({
+          webhookUrl: data.webhook_url,
+          isBound: !!data.feishu_open_id,
+          feishuOpenId: data.feishu_open_id,
+          boundAt: data.feishu_bound_at,
+        })
       }
     } catch (err) {
       console.error("加载设置失败:", err)
     }
   }
 
+  const loadApiKeys = async () => {
+    setLoadingKeys(true)
+    try {
+      const res = await fetch("/api/settings")
+      if (res.ok) {
+        const data = await res.json()
+        setApiKeys(data.apiKeys ?? [])
+      }
+    } catch (err) {
+      console.error("加载 API 密钥失败:", err)
+    } finally {
+      setLoadingKeys(false)
+    }
+  }
+
+  const loadWebhooks = async () => {
+    try {
+      const res = await fetch("/api/settings")
+      if (res.ok) {
+        const data = await res.json()
+        setWebhooks(data.webhooks ?? [])
+      }
+    } catch (err) {
+      console.error("加载 Webhook 失败:", err)
+    }
+  }
+
   const handleSaveWebhook = async () => {
     setSaving(true)
     try {
-      // 更新 profiles 表的 webhook_url 字段
-      // 注意：需要先在 profiles 表添加 webhook_url 字段
       const { error } = await supabase
         .from("profiles")
         .update({ webhook_url: feishuWebhookUrl || null })
@@ -108,6 +188,54 @@ export default function SettingsPage() {
       toast.error("网络错误，请检查 Webhook 地址")
     } finally {
       setTesting(false)
+    }
+  }
+
+  // 生成 API 密钥
+  const handleGenerateKey = async () => {
+    setGeneratingKey(true)
+    setNewlyGeneratedKey(null)
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newKeyName || "default" }),
+      })
+      const data = await res.json()
+      if (res.ok && data.apiKey) {
+        setNewlyGeneratedKey(data.apiKey)
+        toast.success("API 密钥已生成，请立即复制。关闭后不再显示。")
+        await loadApiKeys()
+      } else {
+        toast.error("生成失败: " + (data.error || "未知错误"))
+      }
+    } catch (err) {
+      toast.error("生成失败")
+      console.error(err)
+    } finally {
+      setGeneratingKey(false)
+    }
+  }
+
+  // 复制密钥到剪贴板
+  const handleCopyKey = (key: string) => {
+    navigator.clipboard.writeText(key)
+    toast.success("已复制到剪贴板")
+  }
+
+  // 撤销 API 密钥
+  const handleRevokeKey = async (keyId: string) => {
+    try {
+      const res = await fetch(`/api/settings?id=${keyId}`, { method: "DELETE" })
+      if (res.ok) {
+        toast.success("密钥已撤销")
+        await loadApiKeys()
+      } else {
+        toast.error("撤销失败")
+      }
+    } catch (err) {
+      toast.error("撤销失败")
+      console.error(err)
     }
   }
 
@@ -218,6 +346,190 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">
                 通过邮件接收任务审批通知。当前账户邮箱：{session.user.email}
               </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* API 密钥管理 */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Key className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle>API 密钥</CardTitle>
+                <CardDescription>
+                  管理 API 密钥，用于外部系统调用 WorkflowGuard API
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 已有密钥列表 */}
+            {loadingKeys ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : apiKeys.length > 0 ? (
+              <div className="space-y-2">
+                {apiKeys.map((key) => (
+                  <div
+                    key={key.id}
+                    className="flex items-center justify-between p-3 bg-muted/50 rounded-lg"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{key.name}</span>
+                        {key.last_used_at && (
+                          <span className="text-xs text-muted-foreground">
+                            最后使用: {new Date(key.last_used_at).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                      <code className="text-xs text-muted-foreground block truncate mt-1">
+                        {key.key_value.substring(0, 16)}...
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-4">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyKey(key.key_value)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRevokeKey(key.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                暂无 API 密钥。生成一个密钥用于 API 调用。
+              </p>
+            )}
+
+            <Separator />
+
+            {/* 生成新密钥 */}
+            <div>
+              {newlyGeneratedKey ? (
+                <div className="space-y-3">
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-sm font-semibold text-amber-800 mb-1">
+                      ⚠️ 新密钥已生成（仅显示一次）
+                    </p>
+                    <code className="text-xs bg-amber-100 px-2 py-1 rounded block break-all">
+                      {newlyGeneratedKey}
+                    </code>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCopyKey(newlyGeneratedKey)}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      复制密钥
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setNewlyGeneratedKey(null)}
+                    >
+                      我已保存，关闭
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="密钥名称（如: production-api）"
+                    value={newKeyName}
+                    onChange={(e) => setNewKeyName(e.target.value)}
+                    className="max-w-xs"
+                  />
+                  <Button
+                    onClick={handleGenerateKey}
+                    disabled={generatingKey}
+                  >
+                    {generatingKey ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-1" />
+                    )}
+                    生成密钥
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 飞书集成状态 */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Bot className="h-5 w-5 text-blue-500" />
+              <div>
+                <CardTitle>飞书集成</CardTitle>
+                <CardDescription>
+                  WorkflowGuard 与飞书的集成状态
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className={`w-3 h-3 rounded-full ${feishuStatus.isBound ? "bg-green-500" : "bg-gray-300"}`} />
+                <div>
+                  <p className="font-medium">
+                    {feishuStatus.isBound ? "已连接飞书" : "未连接飞书"}
+                  </p>
+                  {feishuStatus.isBound && feishuStatus.boundAt && (
+                    <p className="text-xs text-muted-foreground">
+                      绑定时间: {new Date(feishuStatus.boundAt).toLocaleString()}
+                    </p>
+                  )}
+                  {!feishuStatus.isBound && (
+                    <p className="text-xs text-muted-foreground">
+                      连接飞书后可接收审批卡片通知，直接在飞书中处理审批
+                    </p>
+                  )}
+                </div>
+              </div>
+              {feishuStatus.isBound ? (
+                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                  <Check className="h-3 w-3 mr-1" />
+                  已连接
+                </Badge>
+              ) : (
+                <Badge variant="secondary">
+                  <X className="h-3 w-3 mr-1" />
+                  未连接
+                </Badge>
+              )}
+            </div>
+
+            {feishuStatus.isBound && (
+              <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+                <p className="text-blue-700">💡 集成已启用</p>
+                <p className="text-blue-600 text-xs mt-1">
+                  审批任务将会通过飞书 Bot 发送审批卡片。你可以直接在飞书中
+                  点击「通过」或「驳回」来处理审批。
+                </p>
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground bg-slate-50 p-3 rounded-lg">
+              <p>📌 在 settings 页中配置飞书 App ID 和 App Secret 以启用完整集成。</p>
             </div>
           </CardContent>
         </Card>

@@ -44,6 +44,7 @@ export default function PricingPage() {
   const router = useRouter()
   const [planLimits, setPlanLimits] = useState<PlanLimit[]>([])
   const [currentPlan, setCurrentPlan] = useState<string | null>(null)
+  const [usage, setUsage] = useState<{ workflows: number; approvals: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [annual, setAnnual] = useState(false)
 
@@ -62,15 +63,28 @@ export default function PricingPage() {
 
       if (plans) setPlanLimits(plans)
 
-      // 获取用户当前套餐
+      // 获取用户当前套餐和使用量
       if (session?.user?.id) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("plan")
+          .select("plan, approval_used")
           .eq("id", session.user.id)
           .single()
 
-        if (profile) setCurrentPlan(profile.plan)
+        if (profile) {
+          setCurrentPlan(profile.plan)
+
+          // 获取工作流数量
+          const { count: wfCount } = await supabase
+            .from("workflows")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", session.user.id)
+
+          setUsage({
+            workflows: wfCount ?? 0,
+            approvals: profile.approval_used ?? 0,
+          })
+        }
       }
     } catch (err) {
       console.error("加载套餐数据失败:", err)
@@ -148,6 +162,9 @@ export default function PricingPage() {
     )
   }
 
+  // 获取当前套餐的计划详情用于使用量展示
+  const currentPlanLimit = planLimits.find(p => p.plan === currentPlan)
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       {/* Navigation */}
@@ -184,6 +201,50 @@ export default function PricingPage() {
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             从免费开始，随着你的需求增长灵活升级。所有套餐均包含 14 天免费试用。
           </p>
+
+          {/* Current usage summary - logged in users */}
+          {session?.user && currentPlan && currentPlanLimit && usage && (
+            <div className="max-w-3xl mx-auto mt-8 p-4 bg-white rounded-xl border shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-sm px-3 py-1">
+                    当前套餐: {PLAN_ICONS[currentPlan]} {currentPlan.toUpperCase()}
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {currentPlanLimit.max_workflows} 个工作流 · {currentPlanLimit.max_approvals} 次审批
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">工作流使用量</span>
+                    <span className="font-medium">{usage.workflows}/{currentPlanLimit.max_workflows}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (usage.workflows / currentPlanLimit.max_workflows) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">审批使用量</span>
+                    <span className="font-medium">{usage.approvals}/{currentPlanLimit.max_approvals}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        usage.approvals >= currentPlanLimit.max_approvals ? "bg-amber-500" : "bg-green-500"
+                      }`}
+                      style={{ width: `${Math.min(100, (usage.approvals / currentPlanLimit.max_approvals) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Billing toggle */}
           <div className="flex items-center justify-center gap-3 mt-6">

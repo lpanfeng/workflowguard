@@ -55,12 +55,12 @@ export default function OnboardingPage() {
   const completeOnboarding = async () => {
     setIsCompleting(true)
     try {
-      // Mark profile as onboarded via a simple update
       if (session?.user?.id) {
-        // Store onboarding completion in user metadata
-        await fetch("/api/auth/session?update", {
-          method: "GET",
-        })
+        // 用 Supabase 更新 profiles 表的 has_onboarded 标记
+        await supabase
+          .from("profiles")
+          .update({ has_onboarded: true })
+          .eq("id", session.user.id)
       }
       // Redirect to dashboard
       router.push("/dashboard?onboarded=true")
