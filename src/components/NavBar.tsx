@@ -34,6 +34,9 @@ export function NavBar() {
           <Link href="/audit-logs">
             <Button variant="ghost" size="sm">审计日志</Button>
           </Link>
+          <Link href="/metrics">
+            <Button variant="ghost" size="sm">指标</Button>
+          </Link>
           <Link href="/pricing">
             <Button variant="ghost" size="sm">定价</Button>
           </Link>

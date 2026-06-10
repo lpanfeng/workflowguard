@@ -81,6 +81,18 @@ export default function SettingsPage() {
     boundAt: string | null
   }>({ webhookUrl: null, isBound: false, feishuOpenId: null, boundAt: null })
 
+  // 通知偏好
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    email_notifications: true,
+    email_on_approval_needed: true,
+    email_on_approved: true,
+    email_on_rejected: true,
+    email_on_completed: false,
+    digest_enabled: false,
+    digest_frequency: "daily" as string,
+  })
+  const [savingNotif, setSavingNotif] = useState(false)
+
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/auth/login")
@@ -92,6 +104,7 @@ export default function SettingsPage() {
       loadSettings()
       loadApiKeys()
       loadWebhooks()
+      loadNotificationPrefs()
     }
   }, [session])
 
@@ -140,6 +153,51 @@ export default function SettingsPage() {
       }
     } catch (err) {
       console.error("加载 Webhook 失败:", err)
+    }
+  }
+
+  // 通知偏好
+  const loadNotificationPrefs = async () => {
+    try {
+      const res = await fetch(`/api/notifications/preferences?userId=${session!.user!.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.prefs) {
+          setNotificationPrefs({
+            email_notifications: data.prefs.email_notifications ?? true,
+            email_on_approval_needed: data.prefs.email_on_approval_needed ?? true,
+            email_on_approved: data.prefs.email_on_approved ?? true,
+            email_on_rejected: data.prefs.email_on_rejected ?? true,
+            email_on_completed: data.prefs.email_on_completed ?? false,
+            digest_enabled: data.prefs.digest_enabled ?? false,
+            digest_frequency: data.prefs.digest_frequency ?? "daily",
+          })
+        }
+      }
+    } catch (err) {
+      console.error("加载通知偏好失败:", err)
+    }
+  }
+
+  const updatePref = async (key: string, value: boolean | string) => {
+    setNotificationPrefs((prev) => ({ ...prev, [key]: value }))
+    setSavingNotif(true)
+    try {
+      const res = await fetch("/api/notifications/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session!.user!.id, [key]: value }),
+      })
+      if (res.ok) {
+        toast.success("通知偏好已更新")
+      } else {
+        toast.error("更新失败，请重试")
+      }
+    } catch (err) {
+      console.error("更新通知偏好失败:", err)
+      toast.error("网络错误")
+    } finally {
+      setSavingNotif(false)
     }
   }
 
@@ -530,6 +588,89 @@ export default function SettingsPage() {
 
             <div className="text-sm text-muted-foreground bg-slate-50 p-3 rounded-lg">
               <p>📌 在 settings 页中配置飞书 App ID 和 App Secret 以启用完整集成。</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 📧 邮件通知偏好 */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle>邮件通知</CardTitle>
+                <CardDescription>管理审批相关的邮件通知设置</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 通知开关 */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">邮件通知</p>
+                <p className="text-sm text-muted-foreground">接收审批相关的邮件提醒</p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={notificationPrefs.email_notifications}
+                  onChange={(e) => updatePref("email_notifications", e.target.checked)}
+                  disabled={savingNotif}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+              </label>
+            </div>
+
+            {notificationPrefs.email_notifications && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium">触发事件</h4>
+                  {[
+                    { key: "email_on_approval_needed", label: "有新审批待处理" },
+                    { key: "email_on_approved", label: "任务审批通过" },
+                    { key: "email_on_rejected", label: "任务被驳回" },
+                    { key: "email_on_completed", label: "任务全流程完成" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center justify-between py-1">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="sr-only peer"
+                          checked={(notificationPrefs as any)[key]}
+                          onChange={(e) => updatePref(key, e.target.checked)}
+                          disabled={savingNotif}
+                        />
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">每日摘要</p>
+                    <p className="text-sm text-muted-foreground">定期汇总未处理的审批任务</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.digest_enabled}
+                      onChange={(e) => updatePref("digest_enabled", e.target.checked)}
+                      disabled={savingNotif}
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                  </label>
+                </div>
+              </>
+            )}
+
+            <div className="text-xs text-muted-foreground bg-slate-50 p-3 rounded-lg">
+              <p>💡 邮件通知需要配置 RESEND_API_KEY 环境变量。通知将发送到你的注册邮箱。</p>
             </div>
           </CardContent>
         </Card>
