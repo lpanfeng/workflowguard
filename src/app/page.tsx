@@ -19,6 +19,7 @@ export default function Home() {
             <Link href="/pricing" className="hover:text-foreground transition-colors">定价</Link>
             <Link href="/dashboard" className="hover:text-foreground transition-colors">仪表盘</Link>
             <Link href="/workflows/new" className="hover:text-foreground transition-colors">创建工作流</Link>
+            <Link href="/feedback" className="hover:text-foreground transition-colors">发送反馈</Link>
           </nav>
           <div className="flex items-center gap-3">
             <Link href="/auth/login">
@@ -43,14 +44,15 @@ export default function Home() {
         </Badge>
         
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight max-w-4xl leading-tight">
-          想让 AI 替你干活，<br />
-          又怕它胡说八道？
+          AI 执行 → 人工审批 → 全程审计<br />
+          <span className="text-primary">让 AI 替你干活，让人做决策。</span>
         </h1>
         
         <p className="mt-6 text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          <strong className="text-foreground">WorkflowGuard</strong> 让人工审批成为 AI 执行的安全阀门。
+          <strong className="text-foreground">WorkflowGuard</strong> 是面向中小企业的 AI Agent 人机协作工作流平台。
+          AI 自动执行任务，关键节点人工审批，每一次操作都可追溯可审计。
           <br />
-          AI 自动处理任务，关键节点由你审批，全程操作可审计。
+          让 AI 替你干活，让人做决策。
         </p>
         
         <div className="mt-10 flex flex-col sm:flex-row gap-4">
@@ -235,6 +237,51 @@ export default function Home() {
         </div>
       </section>
 
+      {/* 用户案例 Section */}
+      <section id="use-cases" className="border-t py-20 bg-gradient-to-b from-white to-slate-50">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-2xl font-bold text-center mb-2">不同团队，同样的痛点</h2>
+          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+            WorkflowGuard 适用于各种需要 AI 辅助又需要人工把关的场景
+          </p>
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4">🎧</div>
+              <h3 className="font-semibold text-lg mb-2">客服团队</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                AI 快速生成回复草稿，客服审核后再发送。减少 70% 的回复时间，同时保证回复质量。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">快速响应</Badge>
+                <Badge variant="secondary">质量可控</Badge>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-2xl mb-4">📝</div>
+              <h3 className="font-semibold text-lg mb-2">内容团队</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                AI 生成初稿 → 编辑审批 → 一键发布。内容效率翻倍，同时避免 AI 幻觉传播。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">效率翻倍</Badge>
+                <Badge variant="secondary">发布安全</Badge>
+              </div>
+            </div>
+            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-2xl mb-4">📊</div>
+              <h3 className="font-semibold text-lg mb-2">运营团队</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                AI 自动提取发票/表格数据，人工确认后写入系统。减少录入错误，数据准确率接近 100%。
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">减少错误</Badge>
+                <Badge variant="secondary">自动化录入</Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA 区块 */}
       <section className="border-t py-20 bg-gradient-to-r from-primary/5 to-blue-500/5">
         <div className="container mx-auto px-4 text-center max-w-2xl">
@@ -258,7 +305,12 @@ export default function Home() {
           <div className="mt-6 flex justify-center gap-6 text-xs text-muted-foreground">
             <span>🔒 安全加密</span>
             <span>🔄 随时取消</span>
-            <span>💳 14 天无理由退款</span>
+            <span>💬 随时反馈</span>
+          </div>
+          <div className="mt-4">
+            <Link href="/feedback">
+              <Button variant="outline" size="sm">📬 发送产品反馈</Button>
+            </Link>
           </div>
         </div>
       </section>
