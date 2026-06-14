@@ -1,8 +1,40 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TestimonialCarousel } from "@/components/features/TestimonialCarousel";
+import { LandingFAQ } from "@/components/features/LandingFAQ";
+import { OnboardingWizard } from "@/components/features/OnboardingWizard";
+import { useState, useEffect, useRef } from "react";
 
 export default function Home() {
+  const [showDemoCta, setShowDemoCta] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+  
+  // Intersection observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("animate-in");
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    
+    document.querySelectorAll(".fade-in-up").forEach((el) => {
+      observer.observe(el);
+    });
+    
+    return () => observer.disconnect();
+  }, []);
+
+  // Demo mode: auto-fill all data
+  const handleDemoClick = () => {
+    window.location.href = "/workflows/new?demo=true";
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
@@ -16,6 +48,7 @@ export default function Home() {
             <Link href="#pain-points" className="hover:text-foreground transition-colors">痛点</Link>
             <Link href="#templates" className="hover:text-foreground transition-colors">模板</Link>
             <Link href="#features" className="hover:text-foreground transition-colors">功能</Link>
+            <Link href="#faq" className="hover:text-foreground transition-colors">FAQ</Link>
             <Link href="/pricing" className="hover:text-foreground transition-colors">定价</Link>
             <Link href="/dashboard" className="hover:text-foreground transition-colors">仪表盘</Link>
             <Link href="/workflows/new" className="hover:text-foreground transition-colors">创建工作流</Link>
@@ -33,7 +66,7 @@ export default function Home() {
       </header>
 
       {/* Hero */}
-      <section className="relative flex-1 flex flex-col items-center justify-center text-center px-4 py-24 overflow-hidden">
+      <section ref={heroRef} className="relative flex-1 flex flex-col items-center justify-center text-center px-4 py-24 overflow-hidden">
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
           <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
@@ -55,21 +88,24 @@ export default function Home() {
           让 AI 替你干活，让人做决策。
         </p>
         
-        <div className="mt-10 flex flex-col sm:flex-row gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row gap-3">
           <Link href="/auth/register">
             <Button size="lg" className="text-base px-8">
               免费开始使用
             </Button>
           </Link>
+          <Button size="lg" variant="outline" className="text-base px-8" onClick={handleDemoClick}>
+            🚀 30 秒体验 Demo
+          </Button>
           <Link href="#templates">
-            <Button variant="outline" size="lg" className="text-base px-8">
+            <Button variant="ghost" size="lg" className="text-base px-8">
               查看工作流模板
             </Button>
           </Link>
         </div>
 
         {/* 快速指标 */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-4 gap-4 max-w-4xl w-full">
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl w-full">
           <div className="flex flex-col items-center gap-1 p-4 bg-background/50 rounded-lg border">
             <span className="text-2xl font-bold text-primary">70%</span>
             <p className="text-xs text-muted-foreground">客服回复时间缩短</p>
@@ -92,26 +128,26 @@ export default function Home() {
       {/* 痛点 Section */}
       <section id="pain-points" className="border-t py-20 bg-gradient-to-b from-slate-50 to-white">
         <div className="container mx-auto px-4 max-w-5xl">
-          <h2 className="text-2xl font-bold text-center mb-4">你大概率也遇到过</h2>
-          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-4 fade-in-up">你大概率也遇到过</h2>
+          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto fade-in-up">
             在尝试用 AI Agent 提升团队效率的时候，这些坑是不是很眼熟？
           </p>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl p-6 border shadow-sm">
+            <div className="bg-white rounded-xl p-6 border shadow-sm fade-in-up">
               <div className="text-2xl mb-3">😰</div>
               <h3 className="font-semibold mb-2">AI 幻觉，信不得</h3>
               <p className="text-sm text-muted-foreground">
                 GPT 给出的答案经常需要二次验证，不敢让它完全自主执行。每次都要人肉核对，等于白干。
               </p>
             </div>
-            <div className="bg-white rounded-xl p-6 border shadow-sm">
+            <div className="bg-white rounded-xl p-6 border shadow-sm fade-in-up">
               <div className="text-2xl mb-3">⚖️</div>
               <h3 className="font-semibold mb-2">效率与安全的两难</h3>
               <p className="text-sm text-muted-foreground">
                 全自动化风险太高，全人工效率太低。你需要的不是二选一，而是一个折中方案。
               </p>
             </div>
-            <div className="bg-white rounded-xl p-6 border shadow-sm">
+            <div className="bg-white rounded-xl p-6 border shadow-sm fade-in-up">
               <div className="text-2xl mb-3">📋</div>
               <h3 className="font-semibold mb-2">出了事查不到</h3>
               <p className="text-sm text-muted-foreground">
@@ -128,12 +164,12 @@ export default function Home() {
           <div className="text-center mb-2">
             <Badge className="px-3 py-1 mb-3">开箱即用</Badge>
           </div>
-          <h2 className="text-2xl font-bold text-center mb-2">预设工作流模板</h2>
-          <p className="text-muted-foreground text-center mb-10">
+          <h2 className="text-2xl font-bold text-center mb-2 fade-in-up">预设工作流模板</h2>
+          <p className="text-muted-foreground text-center mb-10 fade-in-up">
             三步走：选择模板 → 命名工作流 → 开始执行任务。无需编程，5 分钟上手。
           </p>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="border rounded-xl p-6 hover:shadow-lg transition-all hover:-translate-y-1">
+            <div className="border rounded-xl p-6 hover:shadow-lg transition-all hover:-translate-y-1 fade-in-up">
               <div className="text-3xl mb-3">🎧</div>
               <h3 className="font-semibold text-lg mb-2">客服工单审批流</h3>
               <div className="text-xs text-muted-foreground mb-3 font-mono">customer-service</div>
@@ -146,7 +182,7 @@ export default function Home() {
                 <Badge variant="secondary">自动发送</Badge>
               </div>
             </div>
-            <div className="border rounded-xl p-6 hover:shadow-lg transition-all hover:-translate-y-1">
+            <div className="border rounded-xl p-6 hover:shadow-lg transition-all hover:-translate-y-1 fade-in-up">
               <div className="text-3xl mb-3">📝</div>
               <h3 className="font-semibold text-lg mb-2">内容发布审批流</h3>
               <div className="text-xs text-muted-foreground mb-3 font-mono">content-publish</div>
@@ -159,7 +195,7 @@ export default function Home() {
                 <Badge variant="secondary">多平台发布</Badge>
               </div>
             </div>
-            <div className="border rounded-xl p-6 hover:shadow-lg transition-all hover:-translate-y-1">
+            <div className="border rounded-xl p-6 hover:shadow-lg transition-all hover:-translate-y-1 fade-in-up">
               <div className="text-3xl mb-3">📊</div>
               <h3 className="font-semibold text-lg mb-2">数据录入审批流</h3>
               <div className="text-xs text-muted-foreground mb-3 font-mono">data-entry</div>
@@ -173,7 +209,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="text-center mt-10">
+          <div className="text-center mt-10 fade-in-up">
             <Link href="/auth/register">
               <Button size="lg" className="text-base px-8">
                 免费创建你的第一个工作流
@@ -186,47 +222,47 @@ export default function Home() {
       {/* 功能亮点 Section */}
       <section id="features" className="border-t py-20 bg-muted/20">
         <div className="container mx-auto px-4 max-w-5xl">
-          <h2 className="text-2xl font-bold text-center mb-2">不止于审批</h2>
-          <p className="text-muted-foreground text-center mb-12">
+          <h2 className="text-2xl font-bold text-center mb-2 fade-in-up">不止于审批</h2>
+          <p className="text-muted-foreground text-center mb-12 fade-in-up">
             WorkflowGuard 提供一套完整的 AI 工作流管理工具
           </p>
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="flex gap-4">
+            <div className="flex gap-4 fade-in-up">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-xl shrink-0">🤖</div>
               <div>
                 <h3 className="font-semibold mb-1">AI 执行引擎</h3>
                 <p className="text-sm text-muted-foreground">支持 DeepSeek / OpenAI / Claude 多模型切换，针对不同模板智能构建 prompt，自动生成高质量结果。</p>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 fade-in-up">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-xl shrink-0">👤</div>
               <div>
                 <h3 className="font-semibold mb-1">审批工作台</h3>
                 <p className="text-sm text-muted-foreground">一站式审批中心，支持通过/驳回/修改后通过。飞书 Bot 实时通知，手机也能审批。</p>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 fade-in-up">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-xl shrink-0">📋</div>
               <div>
                 <h3 className="font-semibold mb-1">审计日志系统</h3>
                 <p className="text-sm text-muted-foreground">谁在什么时间做了什么操作，完整记录不可篡改。支持按操作类型和时间范围筛选。</p>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 fade-in-up">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-xl shrink-0">📊</div>
               <div>
                 <h3 className="font-semibold mb-1">数据仪表盘</h3>
                 <p className="text-sm text-muted-foreground">实时查看待审批任务、今日完成量、活跃工作流数。数据驱动你的工作流优化决策。</p>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 fade-in-up">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-xl shrink-0">💬</div>
               <div>
                 <h3 className="font-semibold mb-1">飞书集成</h3>
                 <p className="text-sm text-muted-foreground">飞书 Bot 实时推送审批通知，支持对话框直接通过/驳回。工作消息即审批入口。</p>
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 fade-in-up">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-xl shrink-0">🔒</div>
               <div>
                 <h3 className="font-semibold mb-1">配额与权限</h3>
@@ -240,12 +276,12 @@ export default function Home() {
       {/* 用户案例 Section */}
       <section id="use-cases" className="border-t py-20 bg-gradient-to-b from-white to-slate-50">
         <div className="container mx-auto px-4 max-w-5xl">
-          <h2 className="text-2xl font-bold text-center mb-2">不同团队，同样的痛点</h2>
-          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+          <h2 className="text-2xl font-bold text-center mb-2 fade-in-up">不同团队，同样的痛点</h2>
+          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto fade-in-up">
             WorkflowGuard 适用于各种需要 AI 辅助又需要人工把关的场景
           </p>
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1">
+            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 fade-in-up">
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-2xl mb-4">🎧</div>
               <h3 className="font-semibold text-lg mb-2">客服团队</h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -256,7 +292,7 @@ export default function Home() {
                 <Badge variant="secondary">质量可控</Badge>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1">
+            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 fade-in-up">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center text-2xl mb-4">📝</div>
               <h3 className="font-semibold text-lg mb-2">内容团队</h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -267,7 +303,7 @@ export default function Home() {
                 <Badge variant="secondary">发布安全</Badge>
               </div>
             </div>
-            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1">
+            <div className="bg-white rounded-xl p-6 border shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 fade-in-up">
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center text-2xl mb-4">📊</div>
               <h3 className="font-semibold text-lg mb-2">运营团队</h3>
               <p className="text-sm text-muted-foreground mb-4">
@@ -282,15 +318,41 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Social Proof — 用户评价 */}
+      <section id="testimonials" className="border-t py-20 bg-muted/30">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-2xl font-bold text-center mb-2 fade-in-up">他们都在用 WorkflowGuard</h2>
+          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto fade-in-up">
+            来自客服、内容、运营、财务等团队的真实反馈
+          </p>
+          <div className="fade-in-up">
+            <TestimonialCarousel />
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="border-t py-20">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-2xl font-bold text-center mb-2 fade-in-up">常见问题</h2>
+          <p className="text-muted-foreground text-center mb-12 fade-in-up">
+            关于安全、上手难度、定价等常见问题的解答
+          </p>
+          <div className="fade-in-up">
+            <LandingFAQ />
+          </div>
+        </div>
+      </section>
+
       {/* CTA 区块 */}
       <section className="border-t py-20 bg-gradient-to-r from-primary/5 to-blue-500/5">
         <div className="container mx-auto px-4 text-center max-w-2xl">
-          <h2 className="text-3xl font-bold mb-4">准备好让人机协作了吗？</h2>
-          <p className="text-muted-foreground mb-8 text-lg">
+          <h2 className="text-3xl font-bold mb-4 fade-in-up">准备好让人机协作了吗？</h2>
+          <p className="text-muted-foreground mb-8 text-lg fade-in-up">
             免费开始，无需信用卡。<br />
             免费版包含 2 个工作流 + 100 次 AI 调用 + 20 次审批/月，完全够你体验。
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center fade-in-up">
             <Link href="/auth/register">
               <Button size="lg" className="text-base px-8">
                 免费注册 →
@@ -302,12 +364,12 @@ export default function Home() {
               </Button>
             </Link>
           </div>
-          <div className="mt-6 flex justify-center gap-6 text-xs text-muted-foreground">
+          <div className="mt-6 flex justify-center gap-6 text-xs text-muted-foreground fade-in-up">
             <span>🔒 安全加密</span>
             <span>🔄 随时取消</span>
             <span>💬 随时反馈</span>
           </div>
-          <div className="mt-4">
+          <div className="mt-4 fade-in-up">
             <Link href="/feedback">
               <Button variant="outline" size="sm">📬 发送产品反馈</Button>
             </Link>
