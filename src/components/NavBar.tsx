@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSession, signOut } from "next-auth/react"
 import { Badge } from "@/components/ui/badge"
+import { LanguageSwitcher } from "@/components/LanguageSwitcher"
 
 export function NavBar() {
   const { data: session } = useSession()
@@ -19,6 +20,7 @@ export function NavBar() {
           <Badge variant="secondary" className="text-xs">Beta</Badge>
         </div>
         <nav className="flex items-center gap-3">
+          <LanguageSwitcher />
           <Link href="/dashboard">
             <Button variant="ghost" size="sm">仪表盘</Button>
           </Link>

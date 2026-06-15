@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // i18n routing
+  i18n: {
+    locales: ["zh", "en"],
+    defaultLocale: "zh",
+    localeDetection: false, // Use middleware for locale detection
+  },
   // Production optimizations
   output: process.env.DOCKER_BUILD ? "standalone" : undefined,
 
