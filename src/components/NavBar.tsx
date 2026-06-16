@@ -24,6 +24,9 @@ export function NavBar() {
           <Link href="/dashboard">
             <Button variant="ghost" size="sm">仪表盘</Button>
           </Link>
+          <Link href="/templates">
+            <Button variant="ghost" size="sm">模板库</Button>
+          </Link>
           <Link href="/workflows/list">
             <Button variant="ghost" size="sm">工作流</Button>
           </Link>

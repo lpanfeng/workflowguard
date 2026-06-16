@@ -1,0 +1,52 @@
+{
+  "landing": {
+    "hero_title": "WorkflowGuard",
+    "hero_subtitle": "人机协作工作流平台",
+    "hero_desc": "Agent 执行 → 人工审批 → 全程审计。让 AI Agent 的工作可控、可审、可追溯。",
+    "cta_primary": "免费试用",
+    "cta_secondary": "了解更多",
+    "features_title": "核心功能",
+    "feature_1_title": "Agent 执行",
+    "feature_1_desc": "AI Agent 自动执行工作流步骤，释放人力。",
+    "feature_2_title": "人工审批",
+    "feature_2_desc": "关键节点人工审核，确保决策可控。",
+    "feature_3_title": "全程审计",
+    "feature_3_desc": "完整的操作日志，每一步都可追溯。",
+    "templates_title": "预设模板",
+    "template_1": "客服工单审批流",
+    "template_2": "内容发布审批流",
+    "template_3": "数据录入审批流",
+    "faq_title": "常见问题",
+    "faq_1_q": "WorkflowGuard 适合什么样的企业？",
+    "faq_1_a": "适合正在使用 AI Agent 但需要人工审批和审计的中小企业。",
+    "footer_rights": "保留所有权利"
+  },
+  "nav": {
+    "home": "首页",
+    "dashboard": "仪表盘",
+    "workflows": "工作流",
+    "templates": "模板库",
+    "audit": "审计日志",
+    "settings": "设置",
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出"
+  },
+  "common": {
+    "loading": "加载中...",
+    "error": "出错了",
+    "retry": "重试",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "back": "返回",
+    "search": "搜索",
+    "filter": "筛选",
+    "status": "状态",
+    "created_at": "创建于",
+    "updated_at": "更新于"
+  }
+}

@@ -1,12 +1,9 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  // i18n routing
-  i18n: {
-    locales: ["zh", "en"],
-    defaultLocale: "zh",
-    localeDetection: false, // Use middleware for locale detection
-  },
   // Production optimizations
   output: process.env.DOCKER_BUILD ? "standalone" : undefined,
 
@@ -25,4 +22,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

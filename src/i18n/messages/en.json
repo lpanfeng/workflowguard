@@ -1,0 +1,52 @@
+{
+  "landing": {
+    "hero_title": "WorkflowGuard",
+    "hero_subtitle": "Human-AI Collaborative Workflow Platform",
+    "hero_desc": "Agent Executes → Human Approves → Full Audit Trail. Make AI Agent work controllable, auditable, and traceable.",
+    "cta_primary": "Try Free",
+    "cta_secondary": "Learn More",
+    "features_title": "Core Features",
+    "feature_1_title": "Agent Execution",
+    "feature_1_desc": "AI Agents automatically execute workflow steps, freeing up human effort.",
+    "feature_2_title": "Human Approval",
+    "feature_2_desc": "Manual review at key nodes to ensure decisions are controlled.",
+    "feature_3_title": "Full Audit",
+    "feature_3_desc": "Complete operation logs, every step is traceable.",
+    "templates_title": "Templates",
+    "template_1": "Customer Service Workflow",
+    "template_2": "Content Publishing Workflow",
+    "template_3": "Data Entry Workflow",
+    "faq_title": "FAQ",
+    "faq_1_q": "What kind of companies is WorkflowGuard for?",
+    "faq_1_a": "Ideal for SMEs using AI Agents that need human approval and auditing.",
+    "footer_rights": "All rights reserved"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "workflows": "Workflows",
+    "templates": "Templates",
+    "audit": "Audit Logs",
+    "settings": "Settings",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Logout"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "back": "Back",
+    "search": "Search",
+    "filter": "Filter",
+    "status": "Status",
+    "created_at": "Created",
+    "updated_at": "Updated"
+  }
+}
