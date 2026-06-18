@@ -28,6 +28,9 @@ import {
   RefreshCw,
   ExternalLink,
   UserCheck,
+  TrendingUp,
+  Flame,
+  BarChart3,
 } from "lucide-react"
 
 // Step type icon/label mapping
@@ -98,6 +101,10 @@ export default function WorkflowDetailPage() {
   const [loading, setLoading] = useState(true)
   const [executing, setExecuting] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [execHistoryStats, setExecHistoryStats] = useState<{
+    total: number; completed: number; failed: number; successRate: number; avgDurationSeconds: number | null
+  } | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -134,6 +141,7 @@ export default function WorkflowDetailPage() {
 
       // Load executions
       fetchExecutions()
+      fetchExecutionHistory()
 
       // Load related tasks
       const { data: tasks } = await supabase
@@ -162,6 +170,24 @@ export default function WorkflowDetailPage() {
       }
     } catch {
       // Executions API may not have data yet, that's OK
+    }
+  }
+
+  const fetchExecutionHistory = async () => {
+    setHistoryLoading(true)
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}/execute-history?limit=50`)
+      const data = await res.json()
+      if (data.stats) {
+        setExecHistoryStats(data.stats)
+      }
+      if (data.executions) {
+        setExecutions(data.executions)
+      }
+    } catch (err) {
+      console.error("加载执行历史失败:", err)
+    } finally {
+      setHistoryLoading(false)
     }
   }
 
@@ -195,37 +221,41 @@ export default function WorkflowDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!workflow) return
-    if (!confirm("确认删除此工作流？所有关联数据将被移除。")) return
-
+    if (!workflow || !session?.user?.id) return
     setDeleting(true)
     try {
-      const { error } = await supabase
-        .from("workflows")
-        .delete()
-        .eq("id", workflow.id)
-
-      if (error) throw error
+      const res = await fetch(`/api/workflows/${workflow.id}/delete`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id }),
+      })
+      if (!res.ok) throw new Error("删除失败")
 
       toast.success("工作流已删除")
       router.push("/workflows/list")
     } catch (err) {
-      toast.error("删除失败")
+      toast.error(err instanceof Error ? err.message : "删除失败")
     } finally {
       setDeleting(false)
     }
   }
 
-  const toggleActive = async () => {
+  const handleDeleteWithConfirm = async () => {
     if (!workflow) return
+    if (!confirm("⚠️ 二次确认：此操作不可撤销，所有执行记录和关联任务将被删除。是否继续？")) return
+    await handleDelete()
+  }
+
+  const toggleActive = async () => {
+    if (!workflow || !session?.user?.id) return
     try {
-      const { error } = await supabase
-        .from("workflows")
-        .update({ is_active: !workflow.is_active })
-        .eq("id", workflow.id)
-
-      if (error) throw error
-
+      const action = workflow.is_active ? 'pause' : 'resume'
+      const res = await fetch(`/api/workflows/${workflow.id}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id }),
+      })
+      if (!res.ok) throw new Error("操作失败")
       setWorkflow({ ...workflow, is_active: !workflow.is_active })
       toast.success(workflow.is_active ? "已停用" : "已激活")
     } catch {
@@ -317,7 +347,7 @@ export default function WorkflowDetailPage() {
             <Button
               variant="destructive"
               size="sm"
-              onClick={handleDelete}
+              onClick={handleDeleteWithConfirm}
               disabled={deleting}
             >
               {deleting ? (
@@ -386,18 +416,48 @@ export default function WorkflowDetailPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Activity className="h-5 w-5" />
-                    执行历史
-                  </CardTitle>
-                  <Button variant="ghost" size="sm" onClick={fetchExecutions}>
-                    <RefreshCw className="h-3 w-3 mr-1" />
+                  <div className="flex items-center gap-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      执行历史
+                    </CardTitle>
+                    {execHistoryStats && (
+                      <Badge variant={execHistoryStats.successRate >= 80 ? "default" : execHistoryStats.successRate >= 50 ? "secondary" : "destructive"}>
+                        <TrendingUp className="h-3 w-3 mr-1" />
+                        成功率 {execHistoryStats.successRate}%
+                      </Badge>
+                    )}
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={fetchExecutionHistory} disabled={historyLoading}>
+                    {historyLoading ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
                     刷新
                   </Button>
                 </div>
-                <CardDescription>最近 {executions.length} 次执行记录</CardDescription>
+                <CardDescription>最近执行记录与成功率统计</CardDescription>
               </CardHeader>
               <CardContent>
+                {execHistoryStats && execHistoryStats.total > 0 && (
+                  <div className="grid grid-cols-3 gap-3 mb-4 p-3 rounded-lg bg-muted/50">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">{execHistoryStats.completed}</p>
+                      <p className="text-xs text-muted-foreground">已完成</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-red-600">{execHistoryStats.failed}</p>
+                      <p className="text-xs text-muted-foreground">失败</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">
+                        {execHistoryStats.avgDurationSeconds != null ? `${execHistoryStats.avgDurationSeconds}s` : '-'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">平均耗时</p>
+                    </div>
+                  </div>
+                )}
                 {executions.length === 0 ? (
                   <div className="text-center py-8">
                     <Play className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
@@ -529,8 +589,16 @@ export default function WorkflowDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">执行次数</span>
-                  <span>{executions.length}</span>
+                  <span>{execHistoryStats?.total ?? executions.length}</span>
                 </div>
+                {execHistoryStats && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">成功率</span>
+                    <Badge variant={execHistoryStats.successRate >= 80 ? "default" : "secondary"} className="text-xs">
+                      {execHistoryStats.successRate}%
+                    </Badge>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">关联任务</span>
                   <span>{(relatedTasks as unknown[]).length}</span>

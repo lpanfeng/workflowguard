@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { NavBar } from "@/components/NavBar"
+import { MobileNav } from "@/components/MobileNav"
 import { supabase } from "@/lib/supabase"
 import { Plus, FileText, Upload, Trash2, RefreshCw } from "lucide-react"
 import Link from "next/link"
@@ -124,6 +125,9 @@ export default function WorkflowsList() {
           }} />
         </div>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

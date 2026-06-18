@@ -44,6 +44,7 @@ export type ExecutionStatus =
   | "failed"
   | "cancelled"
   | "timed_out"
+  | "paused"
 
 /**
  * 多级审批状态跟踪
@@ -75,6 +76,16 @@ export interface StepExecution {
   maxRetries?: number       // 最大重试次数（默认 0）
   retryDelayMs?: number     // 重试间隔毫秒（默认 5000）
   timeoutMs?: number         // 步骤超时毫秒（默认 60000）
+  durationMs?: number        // 实际执行耗时（毫秒）
+  /** 详细错误上下文 */
+  errorContext?: {
+    stepName: string
+    stepId: string
+    parameters?: Record<string, unknown>
+    errorMessage: string
+    stackTrace?: string
+    timestamp: string
+  }
   /** 多级审批状态 */
   approvalStatus?: ApprovalLevelStatus[]
   /** 当前等待哪一级审批（0-indexed） */
@@ -291,7 +302,12 @@ export class WorkflowExecutor {
       if (step.retryCount! < step.maxRetries!) {
         step.retryCount!++
         step.status = "retrying"
-        step.error = `${isTimeout ? "超时" : "失败"} (第 ${step.retryCount}/${step.maxRetries} 次重试): ${errorMsg}`
+        
+        // 指数退避：第1次重试等5秒，第2次等10秒，第3次等20秒
+        const exponentialDelay = step.retryDelayMs! * Math.pow(2, step.retryCount! - 1)
+        const actualDelay = Math.min(exponentialDelay, 60000) // 最大不超过60秒
+        
+        step.error = `${isTimeout ? "超时" : "失败"} (第 ${step.retryCount}/${step.maxRetries} 次重试，等待 ${actualDelay}ms)`
 
         await this.updateExecutionInDB({
           status: "retrying" as ExecutionStatus,
@@ -306,14 +322,17 @@ export class WorkflowExecutor {
             execution_id: exec.id,
             step_index: stepIndex,
             step_name: step.stepName,
+            step_type: step.stepType,
             retry_count: step.retryCount,
             max_retries: step.maxRetries,
+            delay_ms: actualDelay,
             error: errorMsg,
+            is_timeout: isTimeout,
           },
         })
 
-        // 等待重试间隔
-        await new Promise((resolve) => setTimeout(resolve, step.retryDelayMs!))
+        // 等待重试间隔（指数退避）
+        await new Promise((resolve) => setTimeout(resolve, actualDelay))
 
         // 重新执行当前步骤
         return this.executeNextStep()
@@ -321,6 +340,15 @@ export class WorkflowExecutor {
 
       // 重试用尽，标记为失败
       const finalStatus: ExecutionStatus = isTimeout ? "timed_out" : "failed"
+      
+      // 记录详细的错误上下文
+      step.errorContext = {
+        stepName: step.stepName,
+        stepId: step.stepId,
+        errorMessage: errorMsg,
+        timestamp: new Date().toISOString(),
+      }
+      
       step.status = finalStatus
       step.error = errorMsg
       exec.status = finalStatus
@@ -342,9 +370,12 @@ export class WorkflowExecutor {
           execution_id: exec.id,
           step_index: stepIndex,
           step_name: step.stepName,
+          step_type: step.stepType,
           error: errorMsg,
           is_timeout: isTimeout,
           retries_exhausted: true,
+          max_retries: step.maxRetries,
+          error_context: step.errorContext,
         },
       })
 
@@ -763,10 +794,12 @@ export class WorkflowExecutor {
     exec.status = "completed"
     exec.completedAt = new Date().toISOString()
 
+    // 计算总耗时
+    const totalDurationMs = new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime()
+
     await this.updateExecutionInDB({
       status: "completed" as ExecutionStatus,
       completed_at: exec.completedAt,
-      steps: exec.steps,
     })
 
     await supabaseAdmin.from("audit_logs").insert({
@@ -776,12 +809,12 @@ export class WorkflowExecutor {
       details: {
         execution_id: exec.id,
         steps_count: exec.steps.length,
-        total_duration_ms:
-          new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime(),
+        total_duration_ms: totalDurationMs,
+        completed_steps: exec.steps.filter(s => s.status === "completed" || s.status === "approved").length,
       },
     })
 
-    console.log(`[Executor] 工作流执行完成: ${exec.workflowId} (${exec.id})`)
+    console.log(`[Executor] 工作流执行完成: ${exec.workflowId} (${exec.id}) 耗时 ${totalDurationMs}ms`)
   }
 
   /**
@@ -812,6 +845,55 @@ export class WorkflowExecutor {
       .from("workflow_executions")
       .update(dbUpdate)
       .eq("id", this.execution!.id)
+  }
+
+  /**
+   * 暂停执行
+   */
+  async pauseExecution(): Promise<void> {
+    if (!this.execution) throw new Error("没有正在进行的执行")
+
+    this.execution.status = "paused"
+    this.execution.completedAt = new Date().toISOString()
+
+    await this.updateExecutionInDB({
+      status: "paused" as ExecutionStatus,
+      completed_at: this.execution.completedAt,
+    })
+
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: this.execution.userId,
+      workflow_id: this.execution.workflowId,
+      action: "workflow_execution_paused",
+      details: { execution_id: this.execution.id },
+    })
+    
+    console.log(`[Executor] 工作流已暂停: ${this.execution.workflowId} (${this.execution.id})`)
+  }
+
+  /**
+   * 恢复暂停的执行
+   */
+  async resumeExecution(): Promise<void> {
+    if (!this.execution) throw new Error("没有正在进行的执行")
+
+    this.execution.status = "running"
+    this.execution.completedAt = null
+
+    await this.updateExecutionInDB({
+      status: "running" as ExecutionStatus,
+      completed_at: null,
+    })
+
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: this.execution.userId,
+      workflow_id: this.execution.workflowId,
+      action: "workflow_execution_resumed",
+      details: { execution_id: this.execution.id },
+    })
+
+    // 从当前步骤继续执行
+    await this.executeNextStep()
   }
 
   /**

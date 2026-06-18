@@ -12,6 +12,7 @@ import { AlertTriangle, CheckCircle2, Workflow, Loader2, FileText, Activity, Plu
 import { supabase } from "@/lib/supabase"
 import { NavBar } from "@/components/NavBar"
 import { TaskCreateDialog } from "@/components/TaskCreateDialog"
+import { MobileNav } from "@/components/MobileNav"
 import { ensureDemoWorkflow } from "@/lib/demo-setup"
 import DashboardTrendChart from "@/components/features/DashboardTrendChart"
 import ExecutionTimeline from "@/components/features/ExecutionTimeline"
@@ -339,6 +340,9 @@ export default function DashboardPage() {
 
       {/* Floating Action Button + Task Create Dialog */}
       <TaskCreateDialog userId={session.user.id} onTaskCreated={handleTaskCreated} />
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

@@ -23,6 +23,7 @@ type DailyTrend = {
   approved: number
   rejected: number
   waiting: number
+  totalProcessed: number // completed + rejected (for success rate calc)
 }
 
 type TrendData = {
@@ -30,6 +31,7 @@ type TrendData = {
   totalCompleted: number
   avgPerDay: number
   bestDay: string | null
+  successRate?: number
   isLoading: boolean
 }
 
@@ -54,6 +56,7 @@ export default function DashboardTrendChart({ userId }: { userId: string }) {
     totalCompleted: 0,
     avgPerDay: 0,
     bestDay: null,
+    successRate: 0,
     isLoading: true,
   })
 
@@ -106,15 +109,19 @@ export default function DashboardTrendChart({ userId }: { userId: string }) {
 
       const dailyTrends: DailyTrend[] = days.map((date) => {
         const data = dailyMap.get(date)!
+        const totalProcessed = data.completed + data.rejected
         return {
           date,
           label: formatDate(date),
           ...data,
+          totalProcessed,
         }
       })
 
       const totalCompleted = dailyTrends.reduce((sum, d) => sum + d.completed, 0)
+      const totalProcessed = dailyTrends.reduce((sum, d) => sum + d.totalProcessed, 0)
       const avgPerDay = Math.round(totalCompleted / 7)
+      const successRate = totalProcessed > 0 ? Math.round((totalCompleted / totalProcessed) * 100) : 0
       const bestDayEntry = dailyTrends.reduce(
         (best, curr) => (curr.completed + curr.approved > (best?.completed ?? 0) + (best?.approved ?? 0) ? curr : best),
         dailyTrends[0]
@@ -125,6 +132,7 @@ export default function DashboardTrendChart({ userId }: { userId: string }) {
         totalCompleted,
         avgPerDay,
         bestDay: bestDayEntry?.label ?? null,
+        successRate,
         isLoading: false,
       })
     } catch (err) {
@@ -151,13 +159,19 @@ export default function DashboardTrendChart({ userId }: { userId: string }) {
           <CardDescription>
             {trendData.isLoading
               ? "加载中..."
-              : `总计 ${trendData.totalCompleted} 个完成 · 日均 ${trendData.avgPerDay} 个`}
+              : `总计 ${trendData.totalCompleted} 个完成 · 日均 ${trendData.avgPerDay} 个 · 成功率 ${trendData.successRate}%`}
           </CardDescription>
         </div>
         <div className="flex items-center gap-2">
           {trendData.bestDay && (
             <Badge variant="outline" className="text-xs">
               最佳日: {trendData.bestDay}
+            </Badge>
+          )}
+          {trendData.successRate && trendData.successRate > 0 && (
+            <Badge variant={trendData.successRate >= 80 ? "default" : "secondary"} className="text-xs">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              成功率 {trendData.successRate}%
             </Badge>
           )}
           <button

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Search, Plus, Trash2, Edit2, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { NavBar } from "@/components/NavBar"
+import { MobileNav } from "@/components/MobileNav"
 
 interface Template {
   id: string
