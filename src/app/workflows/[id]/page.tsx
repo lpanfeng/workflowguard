@@ -7,11 +7,16 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import { NavBar } from "@/components/NavBar"
 import { supabase } from "@/lib/supabase"
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates"
 import { toast } from "sonner"
 import Link from "next/link"
+import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRateChart"
 import {
   Loader2,
   ArrowLeft,
@@ -31,6 +36,13 @@ import {
   TrendingUp,
   Flame,
   BarChart3,
+  Eye,
+  Timer,
+  RotateCcw,
+  Database,
+  MessageSquare,
+  History,
+  Zap,
 } from "lucide-react"
 
 // Step type icon/label mapping
@@ -102,9 +114,13 @@ export default function WorkflowDetailPage() {
   const [executing, setExecuting] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [execHistoryStats, setExecHistoryStats] = useState<{
-    total: number; completed: number; failed: number; successRate: number; avgDurationSeconds: number | null
+    total: number; completed: number; failed: number; successRate: number; avgDurationSeconds: number | null; paused?: number; avgDurationMs?: number; maxDurationMs?: number; totalRetries?: number
   } | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedExecution, setSelectedExecution] = useState<ExecutionRecord | null>(null)
+  const [executionDetail, setExecutionDetail] = useState<any>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
 
   useEffect(() => {
     if (authStatus === "unauthenticated") {
@@ -256,10 +272,37 @@ export default function WorkflowDetailPage() {
         body: JSON.stringify({ userId: session.user.id }),
       })
       if (!res.ok) throw new Error("操作失败")
+      const data = await res.json()
       setWorkflow({ ...workflow, is_active: !workflow.is_active })
-      toast.success(workflow.is_active ? "已停用" : "已激活")
+      
+      // 显示暂停/恢复的详细信息
+      if (action === 'pause' && data.pausedExecution) {
+        toast.info(`已暂停工作流，暂停的执行: ${data.pausedExecution.id.slice(0, 8)}`)
+      } else if (action === 'resume' && data.resumedExecution) {
+        toast.success(`已恢复工作流，从步骤 ${data.resumedExecution.stepIndex} 继续`)
+      } else {
+        toast.success(workflow.is_active ? "已停用" : "已激活")
+      }
+      
+      // 刷新执行历史
+      fetchExecutionHistory()
     } catch {
       toast.error("操作失败")
+    }
+  }
+
+  const handleViewExecutionDetail = async (exec: ExecutionRecord) => {
+    setSelectedExecution(exec)
+    setDetailLoading(true)
+    setDetailOpen(true)
+    try {
+      const res = await fetch(`/api/workflows/${workflowId}/execute-history?executionId=${exec.id}`)
+      const data = await res.json()
+      setExecutionDetail(data)
+    } catch {
+      toast.error("加载执行详情失败")
+    } finally {
+      setDetailLoading(false)
     }
   }
 
@@ -518,6 +561,31 @@ export default function WorkflowDetailPage() {
                                 )
                               })}
                             </div>
+
+                            {/* 查看详情按钮 */}
+                            <div className="flex items-center gap-2 mt-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-xs h-6 px-2"
+                                onClick={() => handleViewExecutionDetail(exec)}
+                              >
+                                <Eye className="h-3 w-3 mr-1" />
+                                查看详情
+                              </Button>
+                              {exec.status === "paused" && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Clock className="h-2.5 w-2.5 mr-1" />
+                                  已暂停
+                                </Badge>
+                              )}
+                              {exec.status === "failed" && (
+                                <Badge variant="destructive" className="text-xs">
+                                  <AlertTriangle className="h-2.5 w-2.5 mr-1" />
+                                  失败
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                         </div>
@@ -641,6 +709,166 @@ export default function WorkflowDetailPage() {
           </div>
         </div>
       </main>
+
+      {/* 执行详情弹窗 */}
+      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              执行详情 — {selectedExecution?.id?.slice(0, 8)}
+            </DialogTitle>
+            <DialogDescription>
+              查看工作流执行的完整链路和步骤级别详情
+            </DialogDescription>
+          </DialogHeader>
+          {detailLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              加载中...
+            </div>
+          ) : executionDetail ? (
+            <ScrollArea className="max-h-[60vh] pr-4">
+              {/* 执行概览 */}
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">状态</p>
+                    <Badge variant={
+                      executionDetail.execution.status === "completed" ? "default" :
+                      executionDetail.execution.status === "failed" ? "destructive" :
+                      executionDetail.execution.status === "paused" ? "secondary" :
+                      "outline"
+                    }>
+                      {STATUS_CONFIG[executionDetail.execution.status]?.label ?? executionDetail.execution.status}
+                    </Badge>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">总耗时</p>
+                    <p className="text-sm font-mono">
+                      {executionDetail.execution.totalDurationMs != null
+                        ? `${(executionDetail.execution.totalDurationMs / 1000).toFixed(1)}s`
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">步骤数</p>
+                    <p className="text-sm font-mono">{executionDetail.execution.stepDetails?.length ?? 0}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50">
+                    <p className="text-xs text-muted-foreground">开始时间</p>
+                    <p className="text-sm">{formatTime(executionDetail.execution.started_at)}</p>
+                  </div>
+                </div>
+
+                {/* 输入/输出数据 */}
+                {(executionDetail.execution.input_data || executionDetail.execution.output_data) && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <Zap className="h-4 w-4" /> 输入数据
+                      </h4>
+                      <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto">
+                        {JSON.stringify(executionDetail.execution.input_data, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4" /> 输出数据
+                      </h4>
+                      <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto">
+                        {JSON.stringify(executionDetail.execution.output_data, null, 2)}
+                      </pre>
+                    </div>
+                  </>
+                )}
+
+                {/* 步骤详情 */}
+                <Separator />
+                <div>
+                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <History className="h-4 w-4" /> 步骤执行链路
+                  </h4>
+                  <div className="space-y-3">
+                    {executionDetail.execution.stepDetails?.map((step: any, idx: number) => (
+                      <div key={idx} className="p-3 rounded-lg border bg-card">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono text-muted-foreground">#{idx + 1}</span>
+                            <span className="text-sm font-medium">{step.stepName}</span>
+                            <Badge variant="outline" className="text-xs">{step.stepType}</Badge>
+                          </div>
+                          <Badge variant={
+                            step.status === "completed" ? "default" :
+                            step.status === "failed" ? "destructive" :
+                            step.status === "paused" ? "secondary" :
+                            "outline"
+                          }>
+                            {step.status}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div>
+                            <span className="text-muted-foreground">耗时:</span>{" "}
+                            {step.durationMs ? `${(step.durationMs / 1000).toFixed(1)}s` : "-"}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">重试:</span>{" "}
+                            {step.retryCount ?? 0}/{step.maxRetries ?? 0}
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">开始:</span>{" "}
+                            {step.startedAt ? formatTime(step.startedAt) : "-"}
+                          </div>
+                        </div>
+                        {step.error && (
+                          <div className="mt-2 p-2 rounded bg-destructive/10 text-xs text-destructive">
+                            {step.error}
+                          </div>
+                        )}
+                        {step.errorContext && (
+                          <div className="mt-2 p-2 rounded bg-muted/50 text-xs font-mono">
+                            <pre className="overflow-x-auto">{JSON.stringify(step.errorContext, null, 2)}</pre>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 审计追踪 */}
+                {executionDetail.auditTrail && executionDetail.auditTrail.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                        <RotateCcw className="h-4 w-4" /> 审计追踪
+                      </h4>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {executionDetail.auditTrail.map((log: any, idx: number) => (
+                          <div key={idx} className="text-xs flex items-start gap-2 p-2 rounded bg-muted/30">
+                            <span className="text-muted-foreground font-mono shrink-0">
+                              {log.created_at ? formatTime(log.created_at) : "-"}
+                            </span>
+                            <Badge variant="outline" className="text-xs shrink-0">{log.action}</Badge>
+                            <span className="text-muted-foreground">{JSON.stringify(log.details)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </ScrollArea>
+          ) : (
+            <p className="text-sm text-muted-foreground py-8 text-center">无法加载执行详情</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDetailOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

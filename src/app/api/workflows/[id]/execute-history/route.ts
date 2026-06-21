@@ -1,5 +1,5 @@
-// WorkflowGuard — 工作流执行历史 API
-// 获取指定工作流的执行历史记录（含成功率、耗时统计）
+// WorkflowGuard — 工作流执行历史 API (增强版)
+// GET /api/workflows/[id]/execute-history — 获取执行历史 + 单次执行详情
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
@@ -11,8 +11,8 @@ const supabaseAdmin = createClient(
 )
 
 /**
- * GET /api/workflows/[id]/execute-history?limit=20&page=1
- * 获取工作流的执行历史列表
+ * GET /api/workflows/[id]/execute-history?executionId=xxx — 获取单次执行详情
+ * GET /api/workflows/[id]/execute-history?limit=20&page=1 — 获取执行历史列表
  */
 export async function GET(
   request: NextRequest,
@@ -21,11 +21,65 @@ export async function GET(
   try {
     const { id: workflowId } = await params
     const { searchParams } = request.nextUrl
+    const executionId = searchParams.get("executionId")
     const limit = Math.min(Number(searchParams.get("limit") ?? "20"), 50)
     const page = Number(searchParams.get("page") ?? "1")
     const offset = (page - 1) * limit
 
-    // 获取执行历史
+    // === 模式1: 获取单次执行详情 ===
+    if (executionId) {
+      const { data: execution, error } = await supabaseAdmin
+        .from("workflow_executions")
+        .select("*")
+        .eq("id", executionId)
+        .single()
+
+      if (error || !execution) {
+        return NextResponse.json({ error: "执行记录不存在" }, { status: 404 })
+      }
+
+      // 获取关联的审计日志
+      const { data: auditLogs } = await supabaseAdmin
+        .from("audit_logs")
+        .select("*")
+        .eq("workflow_id", workflowId)
+        .or(`details.execution_id.eq.${executionId}`)
+        .order("created_at", { ascending: true })
+
+      // 获取步骤级别的详细日志
+      const steps = (execution.steps as any[]) ?? []
+      const stepDetails = steps.map((step, idx) => ({
+        index: idx,
+        stepId: step.stepId,
+        stepName: step.stepName,
+        stepType: step.stepType,
+        status: step.status,
+        startedAt: step.startedAt,
+        completedAt: step.completedAt,
+        durationMs: step.durationMs,
+        retryCount: step.retryCount ?? 0,
+        maxRetries: step.maxRetries ?? 0,
+        error: step.error,
+        errorContext: step.errorContext,
+        approvalStatus: step.approvalStatus,
+      }))
+
+      // 计算总耗时
+      const totalDuration = execution.started_at && execution.completed_at
+        ? Math.round(new Date(execution.completed_at).getTime() - new Date(execution.started_at).getTime())
+        : null
+
+      return NextResponse.json({
+        execution: {
+          ...execution,
+          totalDurationMs: totalDuration,
+          stepDetails,
+        },
+        auditTrail: auditLogs ?? [],
+      })
+    }
+
+    // === 模式2: 获取执行历史列表 ===
     const { data: executions, error } = await supabaseAdmin
       .from("workflow_executions")
       .select("*")
@@ -43,23 +97,26 @@ export async function GET(
       .select("*", { count: "exact", head: true })
       .eq("workflow_id", workflowId)
 
-    // 计算成功率
     const total = executions?.length ?? 0
     const completed = executions?.filter((e: any) => e.status === "completed").length ?? 0
-    const failed = executions?.filter((e: any) => ["failed", "timed_out"].includes(e.status)).length ?? 0
+    const failed = executions?.filter((e: any) => ["failed", "timed_out", "cancelled"].includes(e.status)).length ?? 0
+    const paused = executions?.filter((e: any) => e.status === "paused").length ?? 0
     const successRate = total > 0 ? Math.round((completed / total) * 100) : 0
 
-    // 计算平均耗时（秒）
+    // 平均耗时
     const durations = executions
       ?.filter((e: any) => e.started_at && e.completed_at)
-      .map((e: any) => (new Date(e.completed_at).getTime() - new Date(e.started_at).getTime()) / 1000)
+      .map((e: any) => new Date(e.completed_at).getTime() - new Date(e.started_at).getTime())
       .filter((d: number) => d > 0)
 
     const avgDuration = durations.length > 0
       ? Math.round(durations.reduce((a: number, b: number) => a + b, 0) / durations.length)
       : null
 
-    // 计算重试次数统计
+    // 最大耗时
+    const maxDuration = durations.length > 0 ? Math.max(...durations) : null
+
+    // 重试统计
     const totalRetries = executions
       ?.reduce((sum: number, e: any) => {
         const steps = e.steps as any[] ?? []
@@ -78,9 +135,11 @@ export async function GET(
         total,
         completed,
         failed,
+        paused,
         successRate,
-        avgDurationSeconds: avgDuration,
-        totalRetries, // 总重试次数
+        avgDurationMs: avgDuration,
+        maxDurationMs: maxDuration,
+        totalRetries,
       },
     })
   } catch (err) {

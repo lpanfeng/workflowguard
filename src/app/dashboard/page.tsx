@@ -16,6 +16,7 @@ import { MobileNav } from "@/components/MobileNav"
 import { ensureDemoWorkflow } from "@/lib/demo-setup"
 import DashboardTrendChart from "@/components/features/DashboardTrendChart"
 import ExecutionTimeline from "@/components/features/ExecutionTimeline"
+import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRateChart"
 
 type DashboardStats = {
   pendingApproval: number
@@ -289,6 +290,9 @@ export default function DashboardPage() {
 
         {/* 近 7 日趋势图 */}
         <DashboardTrendChart userId={session.user.id} />
+
+        {/* 执行成功率趋势 */}
+        <ExecutionSuccessRateChart userId={session.user.id} />
 
         {/* 最近活动 + 快速开始 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
