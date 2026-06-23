@@ -143,7 +143,7 @@ export default function ExecutionSuccessRateChart({ userId }: { userId: string }
                     background: "hsl(var(--card))",
                     fontSize: "12px",
                   }}
-                  formatter={(value: number) => [`${value}%`, "成功率"]}
+                  formatter={(value) => [`${Number(value)}%`, "成功率"]}
                   labelFormatter={(label) => `${label} 的数据`}
                 />
                 <ReferenceLine y={80} stroke="green" strokeDasharray="3 3" label="80%" />
