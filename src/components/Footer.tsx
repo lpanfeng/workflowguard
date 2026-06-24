@@ -23,8 +23,8 @@ const footerLinks = [
     title: "关于",
     links: [
       { label: "博客", href: "#" },
-      { label: "隐私政策", href: "#" },
-      { label: "服务条款", href: "#" },
+      { label: "隐私政策", href: "/privacy" },
+      { label: "服务条款", href: "/terms" },
     ],
   },
 ]
