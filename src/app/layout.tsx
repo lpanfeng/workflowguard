@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description:
       "AI 自动执行 + 人工审批 + 全程审计，面向中小企业的可控 AI 工作流平台。",
     type: "website",
-    locale: ["zh_CN", "en_US"],
+    locale: "zh_CN",
     siteName: "WorkflowGuard",
     images: [
       {
