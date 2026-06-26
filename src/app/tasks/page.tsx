@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase, supabaseAdmin } from "@/lib/supabase"
 import { toast } from "sonner"
+import { MobileNav } from "@/components/MobileNav"
 import {
   CheckCircle2,
   Clock,
@@ -479,6 +480,9 @@ export default function TasksPage() {
           </Card>
         </div>
       )}
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

@@ -230,8 +230,8 @@ async function syncAllPendingTasks(workflowId: string) {
     return NextResponse.json({ message: "没有待审批的任务需要同步" })
   }
 
-  // TODO: 为每个任务创建飞书审批实例（需要飞书配置）
-  // 这里先返回模拟数据
+  // 飞书审批实例创建：暂不需要。后续接入飞书审批 API 时需在此处
+  // 遍历 pendingTasks 并调用飞书审批模板创建实例。当前直接返回模拟数据。
   return NextResponse.json({
     success: true,
     workflow_title: workflow.name,

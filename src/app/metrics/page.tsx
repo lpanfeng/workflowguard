@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { NavBar } from "@/components/NavBar"
+import { MobileNav } from "@/components/MobileNav"
 import { Skeleton } from "@/components/Skeleton"
 import {
   BarChart3,
@@ -366,6 +367,9 @@ export default function MetricsPage() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

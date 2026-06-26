@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { MobileNav } from "@/components/MobileNav"
 import Link from "next/link"
 import {
   Loader2,
@@ -482,6 +483,9 @@ export default function AuditLogsPage() {
           </Card>
         </div>
       )}
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

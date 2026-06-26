@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { MobileNav } from "@/components/MobileNav"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -759,6 +760,9 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

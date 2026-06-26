@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { NavBar } from "@/components/NavBar"
+import { MobileNav } from "@/components/MobileNav"
 import { supabase } from "@/lib/supabase"
 import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates"
 import { toast } from "sonner"
@@ -869,6 +870,9 @@ export default function WorkflowDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

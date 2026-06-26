@@ -17,6 +17,7 @@ import {
   Rocket,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { MobileNav } from "@/components/MobileNav"
 import Link from "next/link"
 
 type OnboardingStep = {
@@ -351,6 +352,9 @@ export default function OnboardingPage() {
         <p className="text-center text-xs text-muted-foreground mt-8">
           WorkflowGuard v0.1 · 人机协作工作流平台 · 你的数据安全可控
         </p>
+
+        {/* Mobile Bottom Tab Navigation */}
+        <MobileNav />
       </div>
     </div>
   )

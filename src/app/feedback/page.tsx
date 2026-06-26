@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { MobileNav } from '@/components/MobileNav';
 
 const CATEGORIES = [
   { value: 'bug', label: '🐛 功能异常', desc: '使用中遇到报错或异常行为' },
@@ -182,6 +183,9 @@ export default function FeedbackPage() {
           </p>
         </form>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   );
 }

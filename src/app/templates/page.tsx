@@ -110,6 +110,9 @@ export default function TemplatesPage() {
           </div>
         )}
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

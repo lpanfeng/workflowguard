@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { NavBar } from "@/components/NavBar"
+import { MobileNav } from "@/components/MobileNav"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -470,6 +471,9 @@ export default function TaskDetailPage() {
           </Card>
         </div>
       )}
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }
