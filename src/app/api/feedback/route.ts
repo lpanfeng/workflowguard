@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     // Here you would typically save to database
     // For now, we'll log and return success
-    console.log(`[Feedback] Name: ${name}, Email: ${email}, Category: ${category || 'general'}, Source: ${source || 'unknown'}`);
-    console.log(`[Feedback] Message: ${message.substring(0, 200)}...`);
+    
+    
 
     // Simulate async DB write
     await new Promise(resolve => setTimeout(resolve, 100));

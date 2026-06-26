@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
+import { MobileNav } from "@/components/MobileNav"
 import { WORKFLOW_TEMPLATES, type WorkflowTemplate } from "@/lib/workflow-templates"
 import { toast } from "sonner"
 import { ArrowLeft, Check, ChevronRight, Loader2 } from "lucide-react"
@@ -399,6 +400,9 @@ export default function NewWorkflowPage() {
       </div>
     }>
       <NewWorkflowForm />
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </Suspense>
   )
 }

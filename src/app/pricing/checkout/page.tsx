@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { MobileNav } from "@/components/MobileNav"
 import { Check, ArrowLeft, Loader2, AlertCircle } from "lucide-react"
 
 function CheckoutContent() {
@@ -310,6 +311,9 @@ export default function CheckoutPage() {
       </div>
     }>
       <CheckoutContent />
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </Suspense>
   )
 }

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Check, X, Loader2, ArrowRight, Sparkles, Zap, Building2, Star, Shield, Users, TrendingUp, Lock, Clock } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { MobileNav } from "@/components/MobileNav"
 import type { PlanLimit } from "@/lib/database.types"
 
 const PLAN_ICONS: Record<string, React.ReactNode> = {
@@ -480,6 +481,9 @@ export default function PricingPage() {
           <p>© 2026 WorkflowGuard. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

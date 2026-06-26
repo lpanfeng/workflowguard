@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, Plus, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { NavBar } from "@/components/NavBar"
+import { MobileNav } from "@/components/MobileNav"
 
 export default function NewTemplatePage() {
   const [name, setName] = useState("")
@@ -137,6 +138,9 @@ export default function NewTemplatePage() {
           </div>
         </form>
       </main>
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </div>
   )
 }

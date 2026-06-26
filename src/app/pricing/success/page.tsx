@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Loader2, ArrowRight } from "lucide-react"
+import { MobileNav } from "@/components/MobileNav"
 import Link from "next/link"
 
 function SuccessContent() {
@@ -83,6 +84,9 @@ export default function SuccessPage() {
       </div>
     }>
       <SuccessContent />
+
+      {/* Mobile Bottom Tab Navigation */}
+      <MobileNav />
     </Suspense>
   )
 }

@@ -81,7 +81,7 @@ function getMockPerformanceMetrics(): Record<string, any> {
 export async function GET() {
   try {
     // TODO: 接入 Supabase analytics 表聚合真实 Web Vitals 数据
-    // 当前返回模拟数据用于演示
+    // For now, return demo metrics
     const metrics = getMockPerformanceMetrics()
 
     return NextResponse.json(metrics)
