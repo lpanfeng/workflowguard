@@ -318,8 +318,7 @@ export async function POST(request: NextRequest) {
       const openId = sender.sender_id?.open_id
 
       if (openId && text) {
-        console.log(`[Feishu Bot] 收到消息 from ${openId}: ${text.slice(0, 100)}`)
-        // 异步处理，不阻塞响应
+        // Process message asynchronously
         handleMessageCommand(openId, text).catch((err) =>
           console.error("[Feishu Bot] 消息指令处理出错:", err)
         )
@@ -333,9 +332,7 @@ export async function POST(request: NextRequest) {
       const openId = body.event?.operator?.open_id
 
       if (value?.action && value?.task_id && openId) {
-        console.log(`[Feishu Bot] 卡片交互: ${value.action} task ${value.task_id} by ${openId}`)
-
-        // 异步处理
+        // Process card action asynchronously
         handleCardAction(openId, {
           action: value.action,
           task_id: value.task_id,
@@ -396,7 +393,6 @@ export async function notifyApprovalNeeded(params: {
 }) {
   const openId = await getUserFeishuId(params.userId)
   if (!openId) {
-    console.log("[Feishu Bot] 用户未绑定飞书，跳过通知")
     return null
   }
 

@@ -60,9 +60,7 @@ async function handleCallback(callback: Record<string, unknown>) {
     return NextResponse.json({ error: "无效的回调数据" }, { status: 400 })
   }
 
-  console.log(`[Feishu Sync] 收到审批回调: ${event.status} (实例: ${event.instance_code})`)
-
-  // 根据审批状态更新 WFG 任务
+  // Parse and process approval callback
   const statusMap: Record<string, string> = {
     APPROVED: "approved",
     REJECTED: "rejected",

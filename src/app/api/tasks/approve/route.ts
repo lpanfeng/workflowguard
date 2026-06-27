@@ -85,10 +85,10 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // 2. 恢复工作流执行（如果有关联）
+    // 2. Resume workflow execution (if any)
     try {
       await handleTaskApprovalResume(taskId, action, userId, comment, modifiedResult)
-      console.log(`[Approve] 工作流执行恢复成功: taskId=${taskId}, action=${action}`)
+      // Workflow execution resumed
     } catch (resumeErr) {
       // 如果关联执行失败，不阻塞审批本身
       console.error(`[Approve] 工作流执行恢复失败:`, resumeErr)

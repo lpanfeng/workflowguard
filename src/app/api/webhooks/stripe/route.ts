@@ -63,7 +63,7 @@ async function handleCheckoutCompleted(session: any) {
     },
   })
 
-  console.log(`[Stripe Webhook] 用户 ${userId} 套餐已更新为 ${plan}`)
+  // User plan updated
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
@@ -92,7 +92,7 @@ async function handleSubscriptionUpdated(subscription: any) {
       },
     })
 
-    console.log(`[Stripe Webhook] 用户 ${userId} 订阅 ${status}，已降级为 free`)
+    // Subscription downgraded to free
   }
 }
 

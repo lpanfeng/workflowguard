@@ -528,7 +528,6 @@ async function callLLM(prompt: string, templateId: string, inputData: Record<str
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[AI Engine] 使用 DeepSeek API 调用... (尝试 ${attempt}/${maxRetries})`)
         const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -562,19 +561,17 @@ async function callLLM(prompt: string, templateId: string, inputData: Record<str
           throw new Error("DeepSeek API 返回空内容")
         }
 
-        // 从输出中提取置信度
+        // Extract confidence
         let confidence: "高" | "中" | "低" = "中"
         const confMatch = content.match(/置信度[：:]\s*(高|中|低)/)
         if (confMatch) confidence = confMatch[1] as "高" | "中" | "低"
 
-        console.log(`[AI Engine] DeepSeek 调用成功 (尝试 ${attempt})`)
         return { content, confidence, mode: "real" }
       } catch (err) {
         console.error(`[AI Engine] DeepSeek API 调用失败 (尝试 ${attempt}/${maxRetries}):`, err)
         
         if (attempt < maxRetries) {
           const delay = baseDelay * Math.pow(2, attempt - 1) // 指数退避: 1s, 2s, 4s
-          console.log(`[AI Engine] 等待 ${delay}ms 后重试...`)
           await sleep(delay)
         }
       }
@@ -585,8 +582,6 @@ async function callLLM(prompt: string, templateId: string, inputData: Record<str
   }
 
   // 模拟模式
-  console.log("[AI Engine] 使用模拟模式")
-  
   const contentType = detectContentType(inputData, templateId)
   
   // 根据模板ID和内容类型选择模拟响应
@@ -783,8 +778,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "更新任务状态失败" }, { status: 500 })
     }
 
-    console.log(`[AI Engine] 任务 ${taskId} 执行完成 → waiting_approval (模式: ${result.mode}, 置信度: ${result.confidence})`)
-
+    // Task execution completed → waiting_approval
     return NextResponse.json({
       success: true,
       taskId,

@@ -63,7 +63,7 @@ export async function ensureDemoWorkflow(userId: string): Promise<boolean> {
       return false
     }
 
-    console.log("[DemoSetup] ✅ 演示工作流已创建")
+    // Demo setup complete
     return true
   } catch (err) {
     console.error("[DemoSetup] 异常:", err)

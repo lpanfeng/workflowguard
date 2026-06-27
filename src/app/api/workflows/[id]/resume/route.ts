@@ -80,7 +80,7 @@ export async function POST(
         },
       })
 
-      console.log(`[Resume] 工作流执行已恢复: ${workflowId} (${pausedExec.id}), 从步骤 ${resumedStepIndex} 继续`)
+      // Workflow execution resumed
     }
 
     // 3. 记录审计日志

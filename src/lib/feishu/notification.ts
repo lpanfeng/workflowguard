@@ -77,7 +77,7 @@ export async function sendMessage(params: SendMessageParams): Promise<string | n
       return null
     }
 
-    console.log("[Feishu Notification] 消息发送成功:", result.data?.message_id)
+    // Notification sent successfully
     return result.data?.message_id ?? null
   } catch (err) {
     console.error("[Feishu Notification] 发送消息出错:", err)

@@ -388,9 +388,7 @@ export class WorkflowExecutor {
    */
   private async executeActionStep(step: StepExecution): Promise<void> {
     const exec = this.execution!
-    console.log(`[Executor] 执行 Action 步骤: ${step.stepName} (工作流: ${exec.workflowId})`)
-
-    // 根据步骤名称执行对应操作
+    // Execute action step
     switch (step.stepName) {
       case "接收咨询":
       case "确定主题":
@@ -433,9 +431,7 @@ export class WorkflowExecutor {
    */
   private async executeAIStep(step: StepExecution): Promise<void> {
     const exec = this.execution!
-    console.log(`[Executor] 执行 AI 步骤: ${step.stepName} (工作流: ${exec.workflowId})`)
-
-    // 获取工作流信息
+    // Execute AI step
     const { data: workflow } = await supabaseAdmin
       .from("workflows")
       .select("template_id")
@@ -479,8 +475,7 @@ export class WorkflowExecutor {
 
     // 如果 AI 执行后需要审批，暂停等待
     if (aiResult.status === "waiting_approval") {
-      console.log(`[Executor] AI 步骤 ${step.stepName} 等待审批...`)
-      // 检查工作流下一步是否为 human_approve 类型
+      // Check if next step is human_approve type
       const nextStep = exec.steps[exec.currentStepIndex + 1]
       if (nextStep?.stepType === "human_approve") {
         // 不需要在这里做什么，让执行器正常进入下一步
@@ -498,9 +493,8 @@ export class WorkflowExecutor {
    */
   private async waitForApproval(step: StepExecution): Promise<void> {
     const exec = this.execution!
-    console.log(`[Executor] 等待人工审批: ${step.stepName}`)
 
-    // 初始化多级审批状态
+    // Initialize multi-level approval status
     const { data: workflow } = await supabaseAdmin
       .from("workflows")
       .select("template_id")
@@ -518,9 +512,7 @@ export class WorkflowExecutor {
         approver,
       }))
       step.currentApprovalLevel = 0
-      console.log(
-        `[Executor] 多级审批: ${approvalConfig.mode} 模式, ${approvalConfig.levels} 级, 当前第 1 级`
-      )
+      // Multi-level approval initialized
     } else {
       step.approvalStatus = [
         {
@@ -606,7 +598,6 @@ export class WorkflowExecutor {
    */
   private async executeNotifyStep(step: StepExecution): Promise<void> {
     const exec = this.execution!
-    console.log(`[Executor] 执行通知步骤: ${step.stepName}`)
 
     step.result = {
       notified: true,
@@ -702,10 +693,8 @@ export class WorkflowExecutor {
           },
         })
 
-        console.log(
-          `[Executor] 第 ${currentLevel + 1} 级审批通过，进入第 ${nextLevel + 1} 级`
-        )
-        return // 继续等待，不继续执行工作流
+        // Multi-level approval passed, continue waiting
+        return // Continue waiting, don't proceed with workflow
       }
 
       // 所有级别审批通过，继续执行工作流
@@ -814,7 +803,7 @@ export class WorkflowExecutor {
       },
     })
 
-    console.log(`[Executor] 工作流执行完成: ${exec.workflowId} (${exec.id}) 耗时 ${totalDurationMs}ms`)
+    // Workflow execution completed
   }
 
   /**
@@ -868,7 +857,7 @@ export class WorkflowExecutor {
       details: { execution_id: this.execution.id },
     })
     
-    console.log(`[Executor] 工作流已暂停: ${this.execution.workflowId} (${this.execution.id})`)
+    // Workflow paused
   }
 
   /**
@@ -967,7 +956,6 @@ export class WorkflowTriggerDetector {
       )
 
       if (shouldTrigger) {
-        console.log(`[TriggerDetector] 触发工作流: ${workflow.name} (${workflow.id})`)
         const executor = new WorkflowExecutor()
         await executor.trigger(workflow.id, workflow.user_id, config.trigger)
       }

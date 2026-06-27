@@ -76,7 +76,7 @@ export async function POST(
         },
       })
 
-      console.log(`[Pause] 工作流执行已暂停: ${workflowId} (${activeExec.id}), 当前步骤: ${activeExec.current_step_index}`)
+      // Workflow paused
     }
 
     // 3. 记录审计日志
