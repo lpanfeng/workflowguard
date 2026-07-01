@@ -18,6 +18,7 @@ import { WORKFLOW_TEMPLATES } from "@/lib/workflow-templates"
 import { toast } from "sonner"
 import Link from "next/link"
 import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRateChart"
+import ScheduledTrigger from "@/components/ScheduledTrigger"
 import {
   Loader2,
   ArrowLeft,
@@ -453,6 +454,24 @@ export default function WorkflowDetailPage() {
                 ) : (
                   <p className="text-sm text-muted-foreground">未找到模板信息</p>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* 定时触发设置 */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Timer className="h-5 w-5" />
+                  定时触发
+                </CardTitle>
+                <CardDescription>设置工作流的自动执行计划</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScheduledTrigger
+                  workflowId={workflowId}
+                  initialCron={(((workflow?.config as Record<string, unknown>)?.trigger as Record<string, unknown>)?.config as Record<string, unknown>)?.cronExpr as string | undefined}
+                  initialEnabled={((workflow?.config as Record<string, unknown>)?.trigger as Record<string, unknown>)?.type === 'cron'}
+                />
               </CardContent>
             </Card>
 
