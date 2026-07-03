@@ -50,3 +50,54 @@ export async function POST(
     return NextResponse.json({ error: "服务器错误" }, { status: 500 })
   }
 }
+
+// DELETE — 删除定时触发
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: workflowId } = await params
+    const result = await unscheduleWorkflow(workflowId)
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, message: "定时触发已删除" })
+  } catch (err) {
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 })
+  }
+}
+
+// PUT — 更新定时触发
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: workflowId } = await params
+    const body = await request.json()
+    const { cronExpr } = body as { cronExpr?: string }
+
+    if (!cronExpr) {
+      return NextResponse.json({ error: "缺少 cron 表达式" }, { status: 400 })
+    }
+
+    const parsed = parseSimpleCron(cronExpr)
+    if (!parsed) {
+      return NextResponse.json({ error: "不支持的 cron 表达式格式" }, { status: 400 })
+    }
+
+    const result = await scheduleWorkflow(workflowId, cronExpr)
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      message: "定时触发已更新",
+      nextTriggerMinutes: parsed.minutes 
+    })
+  } catch (err) {
+    return NextResponse.json({ error: "服务器错误" }, { status: 500 })
+  }
+}
