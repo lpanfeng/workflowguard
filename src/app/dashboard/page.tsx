@@ -17,6 +17,7 @@ import { ensureDemoWorkflow } from "@/lib/demo-setup"
 import DashboardTrendChart from "@/components/features/DashboardTrendChart"
 import ExecutionTimeline from "@/components/features/ExecutionTimeline"
 import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRateChart"
+import SchedulerHealthCard from "@/components/SchedulerHealthCard"
 
 type DashboardStats = {
   pendingApproval: number
@@ -293,6 +294,9 @@ export default function DashboardPage() {
 
         {/* 执行成功率趋势 */}
         <ExecutionSuccessRateChart userId={session.user.id} />
+
+        {/* 调度器健康状态 */}
+        <SchedulerHealthCard />
 
         {/* 最近活动 + 快速开始 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

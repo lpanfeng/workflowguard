@@ -65,4 +65,5 @@
 - http://localhost:3256
 
 ## Git推送状态
-- 代码已暂存，待构建验证后推送
+- ✅ 已推送至 GitHub (commit: dfaee55)
+- 仓库: https://github.com/lpanfeng/workflowguard
