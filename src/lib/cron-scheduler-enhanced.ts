@@ -78,8 +78,9 @@ export async function getSchedulerHealth(): Promise<{
 
   const activeCount = workflows.filter(w => w.is_active).length
   const cronCount = workflows.filter(w => {
-    const cfg = (w.config ?? {}) as Record<string, unknown>
-    return cfg.trigger?.type === 'cron'
+    const cfg = w.config as Record<string, unknown> | undefined
+    const trigger = cfg?.trigger as Record<string, unknown> | undefined
+    return trigger?.type === 'cron'
   }).length
 
   // 简单估算扫描间隔
