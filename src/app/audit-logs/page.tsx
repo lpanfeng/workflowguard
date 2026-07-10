@@ -32,6 +32,7 @@ import {
   Eye,
   Filter,
   Calendar,
+  Download,
 } from "lucide-react"
 
 // 操作类型映射
@@ -173,6 +174,37 @@ export default function AuditLogsPage() {
     }
   }, [session, pagination.page, pagination.pageSize, filterAction, dateFrom, dateTo, searchQuery])
 
+  const handleExportCSV = useCallback(async () => {
+    if (!session?.user?.id || logs.length === 0) return
+    try {
+      const params = new URLSearchParams({
+        export: "csv",
+        pageSize: String(10000),
+      })
+      if (filterAction !== "all") params.set("action", filterAction)
+      if (dateFrom) params.set("dateFrom", dateFrom)
+      if (dateTo) params.set("dateTo", dateTo)
+      if (searchQuery) params.set("search", searchQuery)
+
+      const res = await fetch(`/api/audit-logs?${params.toString()}`)
+      if (!res.ok) throw new Error("导出失败")
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `audit-logs-${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      toast.success("导出成功")
+    } catch (err) {
+      console.error("导出CSV失败:", err)
+      toast.error("导出失败")
+    }
+  }, [session, logs, filterAction, dateFrom, dateTo, searchQuery])
+
   useEffect(() => {
     if (session?.user?.id) {
       loadLogs()
@@ -282,10 +314,16 @@ export default function AuditLogsPage() {
             <h1 className="text-3xl font-bold mb-1">审计日志</h1>
             <p className="text-muted-foreground">所有操作全程记录，确保可追溯</p>
           </div>
-          <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
-            {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-            刷新
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={loadLogs} disabled={loading}>
+              {loading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+              刷新
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={logs.length === 0 || loading}>
+              <Download className="h-3 w-3 mr-1" />
+              导出CSV
+            </Button>
+          </div>
         </div>
 
         {/* 筛选区 */}
