@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Search, Plus, Trash2, Edit2, ArrowRight } from "lucide-react"
+import { Search, Plus, Trash2, Edit2, ArrowRight, Copy } from "lucide-react"
 import Link from "next/link"
 import { NavBar } from "@/components/NavBar"
 import { MobileNav } from "@/components/MobileNav"
@@ -128,6 +128,17 @@ function TemplateCard({ template, onDelete }: { template: Template; onDelete: ()
     }
   }
 
+  const handleDuplicate = async () => {
+    try {
+      const res = await fetch(`/api/templates/${template.id}/duplicate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) })
+      if (!res.ok) throw new Error("Duplicate failed")
+      onDelete()
+    } catch (err) {
+      console.error("Duplicate failed:", err)
+      alert("复制失败，请重试")
+    }
+  }
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -149,6 +160,9 @@ function TemplateCard({ template, onDelete }: { template: Template; onDelete: ()
             <Link href={`/templates/${template.id}`} className="flex items-center gap-1">
               详情 <ArrowRight className="ml-1 h-3 w-3" />
             </Link>
+          </Button>
+          <Button size="sm" variant="ghost" className="p-2" onClick={handleDuplicate} title="复制模板">
+            <Copy className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="ghost" className="p-2" onClick={handleDelete}>
             <Trash2 className="h-4 w-4 text-destructive" />

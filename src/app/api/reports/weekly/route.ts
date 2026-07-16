@@ -82,7 +82,7 @@ export async function GET(request: Request) {
     // Get approval stats from tasks
     const { data: tasks } = await supabase
       .from("tasks")
-      .select("status, approved_at")
+      .select("status, approved_at, created_at")
       .gte("created_at", startDateStr)
       .lte("created_at", endDateStr)
       .in("workflow_id", executions.map(e => e.workflow_id))

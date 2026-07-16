@@ -2,17 +2,16 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
-export const GET = auth(async (req, { params }: { params: Promise<{ id: string }> }) => {
+// GET /api/templates/[id] - Get single template
+export const GET = auth(async (req, { params }) => {
   if (!req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-
   const { data: template, error } = await supabase
     .from("templates")
     .select("*")
-    .eq("id", id)
+    .eq("id", params.id)
     .single();
 
   if (error || !template) {
@@ -22,18 +21,31 @@ export const GET = auth(async (req, { params }: { params: Promise<{ id: string }
   return NextResponse.json(template);
 });
 
-export const PUT = auth(async (req, { params }: { params: Promise<{ id: string }> }) => {
+// PATCH /api/templates/[id] - Update template
+export const PATCH = auth(async (req, { params }) => {
   if (!req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
   const body = await req.json();
+  const { name, description, category, steps } = body;
 
-  const { data, error } = await supabase
+  if (!name) {
+    return NextResponse.json({ error: "Template name is required" }, { status: 400 });
+  }
+
+  const updateData: Record<string, any> = {
+    name,
+    description: description || "",
+    category: category || "general",
+    steps: steps || [],
+    updated_at: new Date().toISOString(),
+  };
+
+  const { data: template, error } = await supabase
     .from("templates")
-    .update(body)
-    .eq("id", id)
+    .update(updateData)
+    .eq("id", params.id)
     .select()
     .single();
 
@@ -41,20 +53,19 @@ export const PUT = auth(async (req, { params }: { params: Promise<{ id: string }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(template);
 });
 
-export const DELETE = auth(async (req, { params }: { params: Promise<{ id: string }> }) => {
+// DELETE /api/templates/[id] - Delete template
+export const DELETE = auth(async (req, { params }) => {
   if (!req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params;
-
   const { error } = await supabase
     .from("templates")
     .delete()
-    .eq("id", id);
+    .eq("id", params.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
