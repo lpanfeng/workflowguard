@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { ArrowLeft, Plus, Trash2, Save } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Save, GripVertical, ChevronUp, ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { NavBar } from "@/components/NavBar"
 import { MobileNav } from "@/components/MobileNav"
@@ -39,6 +39,8 @@ export default function EditTemplatePage() {
   const [description, setDescription] = useState("")
   const [category, setCategory] = useState("general")
   const [steps, setSteps] = useState<TemplateStep[]>([{ step_name: "", step_type: "action", description: "" }])
+  const [dragIdx, setDragIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
 
   useEffect(() => {
     if (params.id) fetchTemplate()
@@ -67,6 +69,34 @@ export default function EditTemplatePage() {
   const updateStep = (idx: number, field: string, value: string) => {
     const newSteps = [...steps]
     newSteps[idx] = { ...newSteps[idx], [field]: value }
+    setSteps(newSteps)
+  }
+
+  // Drag-and-drop reordering
+  const handleDragStart = (idx: number) => {
+    setDragIdx(idx)
+  }
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault()
+    if (dragIdx === null || dragIdx === idx) return
+    setDragOverIdx(idx)
+    // Perform the reorder immediately
+    const newSteps = [...steps]
+    const [moved] = newSteps.splice(dragIdx, 1)
+    newSteps.splice(idx, 0, moved)
+    setSteps(newSteps)
+    setDragIdx(idx)
+  }
+  const handleDragEnd = () => {
+    setDragIdx(null)
+    setDragOverIdx(null)
+  }
+  const moveStep = (fromIdx: number, direction: "up" | "down") => {
+    const toIdx = direction === "up" ? fromIdx - 1 : fromIdx + 1
+    if (toIdx < 0 || toIdx >= steps.length) return
+    const newSteps = [...steps]
+    const [moved] = newSteps.splice(fromIdx, 1)
+    newSteps.splice(toIdx, 0, moved)
     setSteps(newSteps)
   }
 
@@ -142,18 +172,33 @@ export default function EditTemplatePage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>工作流步骤 ({steps.length})</CardTitle>
-                <CardDescription>定义模板的执行步骤顺序</CardDescription>
+                <CardDescription>拖拽排序或点击↑↓按钮调整顺序，也可添加/删除步骤</CardDescription>
               </div>
               <Button type="button" size="sm" variant="outline" onClick={addStep}>
                 <Plus className="mr-1 h-3 w-3" /> 添加步骤
               </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               {steps.map((step, idx) => (
-                <div key={idx} className="flex gap-3 items-start p-3 border rounded-lg">
+                <div
+                  key={idx}
+                  draggable
+                  onDragStart={() => handleDragStart(idx)}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDragEnd={handleDragEnd}
+                  className={`flex gap-3 items-start p-3 border rounded-lg transition-all duration-150 ${
+                    dragIdx === idx ? "opacity-50 border-dashed border-primary" : ""
+                  } ${dragOverIdx === idx && dragIdx !== idx ? "border-l-4 border-l-primary" : ""}`}
+                >
+                  {/* Drag handle */}
+                  <div className="flex-shrink-0 cursor-grab active:cursor-grabbing mt-2 text-muted-foreground hover:text-foreground">
+                    <GripVertical className="h-5 w-5" />
+                  </div>
+                  {/* Step number */}
                   <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-bold mt-1">
                     {idx + 1}
                   </div>
+                  {/* Step content */}
                   <div className="flex-1 space-y-2">
                     <div className="flex gap-2">
                       <Input
@@ -180,11 +225,37 @@ export default function EditTemplatePage() {
                       rows={2}
                     />
                   </div>
+                  {/* Move buttons */}
+                  <div className="flex-shrink-0 flex flex-col gap-1 mt-1">
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      disabled={idx === 0}
+                      onClick={() => moveStep(idx, "up")}
+                      title="上移"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      disabled={idx === steps.length - 1}
+                      onClick={() => moveStep(idx, "down")}
+                      title="下移"
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  {/* Delete button */}
                   <Button
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="mt-2"
+                    className="mt-1"
                     onClick={() => removeStep(idx)}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />

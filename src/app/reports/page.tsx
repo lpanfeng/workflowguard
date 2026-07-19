@@ -134,7 +134,7 @@ export default function ReportsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label>时间范围</Label>
-                <Select value={weekRange} onValueChange={setWeekRange}>
+                <Select value={weekRange} onValueChange={(v) => setWeekRange(v || "")}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -148,7 +148,7 @@ export default function ReportsPage() {
               </div>
               <div>
                 <Label>工作流筛选</Label>
-                <Select value={selectedWorkflow} onValueChange={setSelectedWorkflow}>
+                <Select value={selectedWorkflow} onValueChange={(v) => setSelectedWorkflow(v || "")}>
                   <SelectTrigger>
                     <SelectValue placeholder="全部工作流" />
                   </SelectTrigger>

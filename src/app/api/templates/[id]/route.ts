@@ -3,11 +3,11 @@ import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 
 // GET /api/templates/[id] - Get single template
-export const GET = auth(async (req, { params }) => {
+export const GET = auth(async (req, context) => {
   if (!req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
+  const params = await context.params;
   const { data: template, error } = await supabase
     .from("templates")
     .select("*")
@@ -22,11 +22,11 @@ export const GET = auth(async (req, { params }) => {
 });
 
 // PATCH /api/templates/[id] - Update template
-export const PATCH = auth(async (req, { params }) => {
+export const PATCH = auth(async (req, context) => {
   if (!req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
+  const params = await context.params;
   const body = await req.json();
   const { name, description, category, steps } = body;
 
@@ -57,11 +57,11 @@ export const PATCH = auth(async (req, { params }) => {
 });
 
 // DELETE /api/templates/[id] - Delete template
-export const DELETE = auth(async (req, { params }) => {
+export const DELETE = auth(async (req, context) => {
   if (!req.auth) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
+  const params = await context.params;
   const { error } = await supabase
     .from("templates")
     .delete()
