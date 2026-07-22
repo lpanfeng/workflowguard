@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { MobileNav } from "@/components/MobileNav"
+import { ExecutionPreferences } from "@/components/features/ExecutionPreferences"
 import Link from "next/link"
 import {
   ArrowLeft,

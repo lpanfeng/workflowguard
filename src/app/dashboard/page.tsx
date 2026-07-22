@@ -18,6 +18,7 @@ import DashboardTrendChart from "@/components/features/DashboardTrendChart"
 import ExecutionTimeline from "@/components/features/ExecutionTimeline"
 import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRateChart"
 import SchedulerHealthCard from "@/components/SchedulerHealthCard"
+import { ActiveExecutionsCard } from "@/components/features/ActiveExecutionsCard"
 
 type DashboardStats = {
   pendingApproval: number
@@ -297,6 +298,11 @@ export default function DashboardPage() {
 
         {/* 调度器健康状态 */}
         <SchedulerHealthCard />
+
+        {/* 活跃执行监控 */}
+        {session?.user?.id && (
+          <ActiveExecutionsCard userId={session.user.id} />
+        )}
 
         {/* 最近活动 + 快速开始 */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
