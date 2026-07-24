@@ -63,6 +63,8 @@ export interface ApprovalLevelStatus {
   handledAt?: string
 }
 
+export type BackoffType = "exponential" | "linear" | "fixed"
+
 export interface StepExecution {
   stepId: string
   stepName: string
@@ -75,6 +77,7 @@ export interface StepExecution {
   retryCount?: number       // 已重试次数
   maxRetries?: number       // 最大重试次数（默认 0）
   retryDelayMs?: number     // 重试间隔毫秒（默认 5000）
+  backoffType?: BackoffType // 退避策略：exponential(指数) | linear(线性) | fixed(固定)
   timeoutMs?: number         // 步骤超时毫秒（默认 60000）
   durationMs?: number        // 实际执行耗时（毫秒）
   /** 详细错误上下文 */
@@ -239,6 +242,7 @@ export class WorkflowExecutor {
     // 设置默认的重试和超时参数
     step.maxRetries = step.maxRetries ?? 0
     step.retryDelayMs = step.retryDelayMs ?? 5000
+    step.backoffType = step.backoffType ?? "exponential"
     step.timeoutMs = step.timeoutMs ?? 60000
     step.retryCount = step.retryCount ?? 0
 
@@ -303,9 +307,24 @@ export class WorkflowExecutor {
         step.retryCount!++
         step.status = "retrying"
         
-        // 指数退避：第1次重试等5秒，第2次等10秒，第3次等20秒
-        const exponentialDelay = step.retryDelayMs! * Math.pow(2, step.retryCount! - 1)
-        const actualDelay = Math.min(exponentialDelay, 60000) // 最大不超过60秒
+        // 根据退避策略计算重试延迟
+        let actualDelay: number
+        switch (step.backoffType) {
+          case "linear":
+            // 线性退避：第1次5s，第2次10s，第3次15s...
+            actualDelay = Math.min(step.retryDelayMs! * step.retryCount!, 60000)
+            break
+          case "fixed":
+            // 固定间隔：每次都等 retryDelayMs
+            actualDelay = step.retryDelayMs!
+            break
+          case "exponential":
+          default:
+            // 指数退避：第1次5s，第2次10s，第3次20s...
+            const exponentialDelay = step.retryDelayMs! * Math.pow(2, step.retryCount! - 1)
+            actualDelay = Math.min(exponentialDelay, 60000)
+            break
+        }
         
         step.error = `${isTimeout ? "超时" : "失败"} (第 ${step.retryCount}/${step.maxRetries} 次重试，等待 ${actualDelay}ms)`
 
@@ -325,6 +344,7 @@ export class WorkflowExecutor {
             step_type: step.stepType,
             retry_count: step.retryCount,
             max_retries: step.maxRetries,
+            backoff_type: step.backoffType,
             delay_ms: actualDelay,
             error: errorMsg,
             is_timeout: isTimeout,
