@@ -19,6 +19,7 @@ import ExecutionTimeline from "@/components/features/ExecutionTimeline"
 import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRateChart"
 import SchedulerHealthCard from "@/components/SchedulerHealthCard"
 import { ActiveExecutionsCard } from "@/components/features/ActiveExecutionsCard"
+import { FunnelChart } from "@/components/features/FunnelChart"
 
 type DashboardStats = {
   pendingApproval: number
@@ -302,6 +303,11 @@ export default function DashboardPage() {
         {/* 活跃执行监控 */}
         {session?.user?.id && (
           <ActiveExecutionsCard userId={session.user.id} />
+        )}
+
+        {/* 任务转化漏斗 */}
+        {session?.user?.id && (
+          <FunnelChart userId={session.user.id} />
         )}
 
         {/* 最近活动 + 快速开始 */}
