@@ -20,6 +20,7 @@ import ExecutionSuccessRateChart from "@/components/features/ExecutionSuccessRat
 import SchedulerHealthCard from "@/components/SchedulerHealthCard"
 import { ActiveExecutionsCard } from "@/components/features/ActiveExecutionsCard"
 import { FunnelChart } from "@/components/features/FunnelChart"
+import { DashboardMetricsCards } from "@/components/features/DashboardMetricsCards"
 
 type DashboardStats = {
   pendingApproval: number
@@ -198,98 +199,8 @@ export default function DashboardPage() {
           </Button>
         </div>
 
-        {/* 统计概览 */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Link href="/tasks?filter=waiting_approval">
-            <Card className="cursor-pointer hover:border-amber-400/50 transition-colors h-full">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-amber-600 flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  待审批任务
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-3xl font-bold text-amber-600">{stats.pendingApproval}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      占总任务 {stats.totalTasks > 0 ? Math.round(stats.pendingApproval / stats.totalTasks * 100) : 0}%
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/tasks?filter=completed">
-            <Card className="cursor-pointer hover:border-green-400/50 transition-colors h-full">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-green-600 flex items-center gap-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  今日已完成
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-3xl font-bold text-green-600">{stats.completedToday}</p>
-                    <p className="text-xs text-muted-foreground mt-1">今日通过 + 完成</p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/workflows/new">
-            <Card className="cursor-pointer hover:border-blue-400/50 transition-colors h-full">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-blue-600 flex items-center gap-1">
-                  <Workflow className="h-3 w-3" />
-                  活跃工作流
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-3xl font-bold text-blue-600">{stats.activeWorkflows}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      配额：{stats.workflowQuota} 个
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-
-          <Link href="/audit-logs">
-            <Card className="cursor-pointer hover:border-purple-400/50 transition-colors h-full">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-purple-600 flex items-center gap-1">
-                  <Activity className="h-3 w-3" />
-                  总任务量
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                ) : (
-                  <>
-                    <p className="text-3xl font-bold text-purple-600">{stats.totalTasks}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      审批用量：{stats.approvalUsed}/{stats.approvalQuota}
-                    </p>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
+        {/* 统计概览 - 新增6项指标卡片 */}
+        <DashboardMetricsCards userId={session.user.id} />
 
         {/* 近 7 日趋势图 */}
         <DashboardTrendChart userId={session.user.id} />
