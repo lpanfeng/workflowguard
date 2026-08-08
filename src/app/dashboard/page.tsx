@@ -21,6 +21,7 @@ import SchedulerHealthCard from "@/components/SchedulerHealthCard"
 import { ActiveExecutionsCard } from "@/components/features/ActiveExecutionsCard"
 import { FunnelChart } from "@/components/features/FunnelChart"
 import { DashboardMetricsCards } from "@/components/features/DashboardMetricsCards"
+import WorkspaceBoard from "@/components/features/WorkspaceBoard"
 
 type DashboardStats = {
   pendingApproval: number
@@ -202,6 +203,8 @@ export default function DashboardPage() {
         {/* 统计概览 - 新增6项指标卡片 */}
         <DashboardMetricsCards userId={session.user.id} />
 
+        {/* 工作台视图 */}
+        <WorkspaceBoard userId={session.user.id} />
         {/* 近 7 日趋势图 */}
         <DashboardTrendChart userId={session.user.id} />
 
