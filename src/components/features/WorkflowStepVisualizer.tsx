@@ -152,6 +152,7 @@ export function WorkflowStepVisualizer({ executionId, workflowId }: { executionI
   const steps: WorkflowStep[] = execution?.steps?.map((s, idx) => ({
     id: s.stepId,
     name: s.stepName,
+    description: s.stepName,
     type: s.stepType as WorkflowStep["type"],
     status: s.status as StepStatus,
     startedAt: s.startedAt || undefined,
@@ -160,6 +161,7 @@ export function WorkflowStepVisualizer({ executionId, workflowId }: { executionI
     error: s.error,
   })) || template?.steps?.map(s => ({
     ...s,
+    description: s.description || s.name,
     status: "pending" as StepStatus,
   })) || []
 
@@ -188,7 +190,7 @@ export function WorkflowStepVisualizer({ executionId, workflowId }: { executionI
             const config = STEP_TYPE_CONFIG[step.type]
             const StatusIcon = config.icon
             const stepStatus = execution?.steps?.[idx]?.status || step.status || "pending"
-            const statusConfig = STEP_STATUS_CONFIG[stepStatus] || STEP_STATUS_CONFIG.pending
+            const statusConfig = STEP_STATUS_CONFIG[stepStatus as keyof typeof STEP_STATUS_CONFIG] || STEP_STATUS_CONFIG["pending"]
             const StatusIconComp = statusConfig.icon
 
             return (
@@ -284,14 +286,14 @@ export function WorkflowStepVisualizer({ executionId, workflowId }: { executionI
                 {execution.status === "step_in_progress" && "步骤执行中"}
               </Badge>
             </div>
-            {execution.started_at && (
+            {execution.steps && execution.steps[0]?.startedAt && (
               <span className="text-muted-foreground">
-                开始于 {new Date(execution.started_at).toLocaleString("zh-CN")}
+                开始于 {new Date(execution.steps[0].startedAt!).toLocaleString("zh-CN")}
               </span>
             )}
-            {execution.completed_at && (
+            {execution.steps && execution.steps[execution.steps.length - 1]?.completedAt && (
               <span className="text-muted-foreground">
-                完成于 {new Date(execution.completed_at).toLocaleString("zh-CN")}
+                完成于 {new Date(execution.steps[execution.steps.length - 1].completedAt!).toLocaleString("zh-CN")}
               </span>
             )}
           </div>
