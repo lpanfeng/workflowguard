@@ -41,6 +41,8 @@ export interface WorkflowTemplate {
   category: string
   steps: WorkflowStep[]
   promptTemplate: string
+  /** 使用的AI模型ID */
+  modelId?: string
   /** 审批步骤配置（按步骤 id 索引） */
   approvalConfig?: Record<string, ApprovalStepConfig>
 }

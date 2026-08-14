@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { ArrowLeft, Check, ChevronRight, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useEffect } from "react"
+import { ModelSelector } from "@/components/features/ModelSelector"
 
 function NewWorkflowForm() {
   const { data: session, status } = useSession()
@@ -33,6 +34,7 @@ function NewWorkflowForm() {
   )
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [modelId, setModelId] = useState<string>(selectedTemplate?.modelId ?? "deepseek-chat")
   const [isActive, setIsActive] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -56,6 +58,7 @@ function NewWorkflowForm() {
     setSelectedTemplate(template)
     setName(template.name)
     setDescription(template.description)
+    setModelId(template.modelId ?? "deepseek-chat")
     setStep("configure")
   }
 
@@ -99,7 +102,7 @@ function NewWorkflowForm() {
         template_id: selectedTemplate.id,
         name: name.trim(),
         description: description.trim() || null,
-        config: {},
+        config: { model_id: modelId },
         is_active: isActive,
       })
 
@@ -361,6 +364,15 @@ function NewWorkflowForm() {
                 <Label htmlFor="isActive" className="cursor-pointer">
                   创建后立即启用
                 </Label>
+              </div>
+
+              {/* AI 模型选择 */}
+              <div className="pt-4 border-t">
+                <ModelSelector
+                  value={modelId}
+                  onChange={setModelId}
+                  scenario={selectedTemplate.category}
+                />
               </div>
             </div>
 
