@@ -21,6 +21,7 @@ import SchedulerHealthCard from "@/components/SchedulerHealthCard"
 import { ActiveExecutionsCard } from "@/components/features/ActiveExecutionsCard"
 import { FunnelChart } from "@/components/features/FunnelChart"
 import { DashboardMetricsCards } from "@/components/features/DashboardMetricsCards"
+import { AIExecutionStatsCard } from "@/components/features/AIExecutionStatsCard"
 import WorkspaceBoard from "@/components/features/WorkspaceBoard"
 
 type DashboardStats = {
@@ -205,6 +206,12 @@ export default function DashboardPage() {
 
         {/* 工作台视图 */}
         <WorkspaceBoard userId={session.user.id} />
+
+        {/* AI调用统计 */}
+        {session?.user?.id && (
+          <AIExecutionStatsCard userId={session.user.id} />
+        )}
+
         {/* 近 7 日趋势图 */}
         <DashboardTrendChart userId={session.user.id} />
 

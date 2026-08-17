@@ -458,6 +458,9 @@ export class WorkflowExecutor {
       .eq("id", exec.workflowId)
       .single()
 
+    // 记录AI调用开始时间
+    const aiStartMs = Date.now()
+
     // 创建 AI 执行任务
     const { data: task, error: taskError } = await supabaseAdmin
       .from("tasks")
@@ -478,6 +481,23 @@ export class WorkflowExecutor {
       throw new Error(`创建 AI 任务失败: ${taskError?.message}`)
     }
 
+    // 写入审计日志：AI调用开始
+    const modelUsed = process.env.DEEPSEEK_API_KEY ? "deepseek-chat" : "mock"
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: exec.userId,
+      workflow_id: exec.workflowId,
+      action: "ai_executed" as any,
+      details: {
+        execution_id: exec.id,
+        step_id: step.stepId,
+        step_name: step.stepName,
+        task_id: task.id,
+        model: modelUsed,
+        status: "started",
+        latency_ms: null,
+      },
+    })
+
     // 调用 AI 执行
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
     const aiResponse = await fetch(`${appUrl}/api/ai/execute`, {
@@ -486,12 +506,49 @@ export class WorkflowExecutor {
       body: JSON.stringify({ taskId: task.id }),
     })
 
+    const aiEndMs = Date.now()
+    const latencyMs = aiEndMs - aiStartMs
+
     if (!aiResponse.ok) {
+      // 记录AI调用失败
+      await supabaseAdmin.from("audit_logs").insert({
+        user_id: exec.userId,
+        workflow_id: exec.workflowId,
+        action: "ai_failed" as any,
+        details: {
+          execution_id: exec.id,
+          step_id: step.stepId,
+          step_name: step.stepName,
+          task_id: task.id,
+          model: modelUsed,
+          status: "failed",
+          latency_ms: latencyMs,
+          error: `HTTP ${aiResponse.status}`,
+        },
+      })
       throw new Error(`AI 执行失败: ${aiResponse.status}`)
     }
 
     const aiResult = await aiResponse.json()
     step.result = aiResult
+
+    // 记录AI调用完成
+    await supabaseAdmin.from("audit_logs").insert({
+      user_id: exec.userId,
+      workflow_id: exec.workflowId,
+      action: "ai_executed" as any,
+      details: {
+        execution_id: exec.id,
+        step_id: step.stepId,
+        step_name: step.stepName,
+        task_id: task.id,
+        model: modelUsed,
+        status: aiResult.status ?? "completed",
+        latency_ms: latencyMs,
+        confidence: aiResult.result?.confidence,
+        mode: aiResult.mode,
+      },
+    })
 
     // 如果 AI 执行后需要审批，暂停等待
     if (aiResult.status === "waiting_approval") {

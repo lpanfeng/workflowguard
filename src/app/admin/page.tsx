@@ -1,12 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Feedback, FileText, Settings } from "lucide-react";
+import { FileText, Settings, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
 const adminCards = [
   {
     title: "用户反馈",
     description: "查看和管理用户提交的反馈意见",
-    icon: Feedback,
+    icon: MessageSquare,
     href: "/admin/feedbacks",
     color: "text-blue-500",
   },

@@ -116,7 +116,7 @@ export default function FeedbacksPage() {
       </div>
 
       <div className="flex items-center gap-4">
-        <Select value={filter} onValueChange={setFilter}>
+        <Select value={filter} onValueChange={(v) => setFilter(v || "all")}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="筛选状态" />
           </SelectTrigger>
