@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { supabase, supabaseAdmin } from "@/lib/supabase"
@@ -19,9 +19,14 @@ import {
   AlertTriangle,
   Loader2,
   Search,
-  ExternalLink,
+  Activity,
+  Cpu,
+  ChevronRight,
+  Eye,
+  History,
 } from "lucide-react"
 import Link from "next/link"
+import ExecutionTimeline from "@/components/features/ExecutionTimeline"
 
 type TaskRecord = {
   id: string
@@ -33,6 +38,7 @@ type TaskRecord = {
   input_data: Record<string, unknown>
   agent_result: { content: string } | null
   agent_confidence: string | null
+  agent_model?: string | null
   approved_result: Record<string, unknown> | null
   approval_comment: string | null
   approved_at: string | null
@@ -45,42 +51,56 @@ type TaskRecord = {
 
 const STATUS_CONFIG: Record<
   string,
-  { label: string; color: string; icon: React.ReactNode }
+  { label: string; color: string; icon: React.ReactNode; bg: string; border: string }
 > = {
   pending: {
     label: "待处理",
-    color: "bg-slate-100 text-slate-700",
+    color: "text-slate-700",
     icon: <Clock className="h-3 w-3" />,
+    bg: "bg-slate-100",
+    border: "border-slate-200",
   },
   ai_processing: {
     label: "AI 处理中",
-    color: "bg-purple-100 text-purple-700",
+    color: "text-purple-700",
     icon: <Loader2 className="h-3 w-3 animate-spin" />,
+    bg: "bg-purple-100",
+    border: "border-purple-200",
   },
   waiting_approval: {
     label: "待审批",
-    color: "bg-amber-100 text-amber-700",
+    color: "text-amber-700",
     icon: <AlertTriangle className="h-3 w-3" />,
+    bg: "bg-amber-100",
+    border: "border-amber-200",
   },
   approved: {
     label: "已通过",
-    color: "bg-green-100 text-green-700",
+    color: "text-green-700",
     icon: <CheckCircle2 className="h-3 w-3" />,
+    bg: "bg-green-100",
+    border: "border-green-200",
   },
   rejected: {
     label: "已驳回",
-    color: "bg-red-100 text-red-700",
+    color: "text-red-700",
     icon: <XCircle className="h-3 w-3" />,
+    bg: "bg-red-100",
+    border: "border-red-200",
   },
   completed: {
     label: "已完成",
-    color: "bg-blue-100 text-blue-700",
+    color: "text-blue-700",
     icon: <CheckCircle2 className="h-3 w-3" />,
+    bg: "bg-blue-100",
+    border: "border-blue-200",
   },
   failed: {
     label: "失败",
-    color: "bg-red-100 text-red-700",
+    color: "text-red-700",
     icon: <XCircle className="h-3 w-3" />,
+    bg: "bg-red-100",
+    border: "border-red-200",
   },
 }
 
@@ -88,6 +108,105 @@ const TYPE_LABELS: Record<string, string> = {
   customer_service: "客服工单",
   content_publish: "内容发布",
   data_entry: "数据录入",
+}
+
+// 任务执行时间线步骤
+const STEP_CONFIG = [
+  { key: "created", label: "创建", icon: <Clock className="h-3 w-3" /> },
+  { key: "ai_processing", label: "AI处理", icon: <Cpu className="h-3 w-3" /> },
+  { key: "waiting_approval", label: "待审批", icon: <AlertTriangle className="h-3 w-3" /> },
+  { key: "completed", label: "完成", icon: <CheckCircle2 className="h-3 w-3" /> },
+]
+
+function TaskTimeline({ task }: { task: TaskRecord }) {
+  const status = task.status
+  const steps = [
+    { key: "created", label: "创建", done: true, time: task.created_at },
+    {
+      key: "ai_processing",
+      label: "AI处理",
+      done: ["ai_processing", "waiting_approval", "approved", "rejected", "completed", "failed"].includes(status),
+      time: task.started_at,
+      detail: task.agent_model ? `模型: ${task.agent_model}` : null,
+    },
+    {
+      key: "waiting_approval",
+      label: "审批",
+      done: ["approved", "rejected", "completed"].includes(status),
+      time: task.approved_at,
+      detail: task.approval_comment ? `备注: ${task.approval_comment}` : null,
+    },
+    {
+      key: "completed",
+      label: "完成",
+      done: ["approved", "completed"].includes(status),
+      time: task.completed_at,
+      detail: status === "failed" ? `错误: ${task.error_message ?? "未知"}` : null,
+    },
+  ]
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border">
+      <div className="flex items-center gap-1 mb-2">
+        <History className="h-3 w-3 text-muted-foreground" />
+        <span className="text-xs text-muted-foreground font-medium">执行时间线</span>
+      </div>
+      <div className="flex items-center gap-0">
+        {steps.map((step, idx) => (
+          <div key={step.key} className="flex items-center">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all ${
+                  step.done
+                    ? "bg-green-500 border-green-500 text-white"
+                    : status === step.key ||
+                      (step.key === "ai_processing" && status === "ai_processing")
+                    ? "bg-purple-500 border-purple-500 text-white animate-pulse"
+                    : "bg-muted border-muted-foreground/30 text-muted-foreground"
+                }`}
+              >
+                {step.done ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : step.key === "ai_processing" && status === "ai_processing" ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <span className="text-[10px] font-bold">{idx + 1}</span>
+                )}
+              </div>
+              <span
+                className={`text-[10px] ${
+                  step.done ? "text-green-600 font-medium" : "text-muted-foreground"
+                }`}
+              >
+                {step.label}
+              </span>
+              {step.time && (
+                <span className="text-[9px] text-muted-foreground/60">
+                  {new Date(step.time).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
+            {idx < steps.length - 1 && (
+              <div
+                className={`w-6 h-0.5 mb-3 ${
+                  step.done ? "bg-green-500" : "bg-muted-foreground/20"
+                }`}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      {task.agent_confidence && (
+        <div className="flex items-center gap-1 mt-1.5">
+          <Cpu className="h-3 w-3 text-purple-500" />
+          <span className="text-[10px] text-muted-foreground">
+            置信度: {task.agent_confidence}
+            {task.agent_model ? ` · ${task.agent_model}` : ""}
+          </span>
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function TasksPage() {
@@ -100,6 +219,7 @@ export default function TasksPage() {
   const [approvingTask, setApprovingTask] = useState<string | null>(null)
   const [comment, setComment] = useState("")
   const [showApproveDialog, setShowApproveDialog] = useState<TaskRecord | null>(null)
+  const [viewMode, setViewMode] = useState<"list" | "timeline">("list")
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -210,7 +330,6 @@ export default function TasksPage() {
               </Button>
             </Link>
             <Avatar className="h-8 w-8">
-              <AvatarImage src={session.user.image ?? undefined} />
               <AvatarFallback>{session.user.name?.charAt(0) ?? "U"}</AvatarFallback>
             </Avatar>
           </div>
@@ -225,6 +344,30 @@ export default function TasksPage() {
             <p className="text-muted-foreground mt-1">
               查看和管理你的所有任务与审批
             </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">
+              <Activity className="h-3 w-3 mr-1" />
+              {tasks.filter((t) => t.status === "completed" || t.status === "approved").length} 已完成
+            </Badge>
+            <div className="flex border rounded-lg overflow-hidden">
+              <Button
+                variant={viewMode === "list" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none"
+                onClick={() => setViewMode("list")}
+              >
+                <Eye className="h-3 w-3 mr-1" />列表
+              </Button>
+              <Button
+                variant={viewMode === "timeline" ? "default" : "ghost"}
+                size="sm"
+                className="rounded-none"
+                onClick={() => setViewMode("timeline")}
+              >
+                <History className="h-3 w-3 mr-1" />时间线
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -308,8 +451,10 @@ export default function TasksPage() {
           />
         </div>
 
-        {/* 任务列表 */}
-        {loading ? (
+        {/* 视图模式 */}
+        {viewMode === "timeline" ? (
+          <ExecutionTimeline userId={session.user.id} />
+        ) : loading ? (
           <div className="text-center py-12">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
             <p className="text-muted-foreground mt-4">加载中...</p>
@@ -334,7 +479,7 @@ export default function TasksPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusCfg.color}`}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${statusCfg.bg} ${statusCfg.color} border ${statusCfg.border}`}
                           >
                             {statusCfg.icon}
                             {statusCfg.label}
@@ -352,12 +497,11 @@ export default function TasksPage() {
                         <p className="text-xs text-muted-foreground mt-1">
                           创建于{" "}
                           {new Date(task.created_at).toLocaleString("zh-CN")}
+                          {task.started_at && ` · AI处理于 ${new Date(task.started_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`}
                         </p>
-                        {task.approval_comment && (
-                          <p className="text-xs text-muted-foreground mt-1 italic">
-                            审批备注: {task.approval_comment}
-                          </p>
-                        )}
+
+                        {/* 执行时间线 */}
+                        <TaskTimeline task={task} />
                       </div>
 
                       {/* 操作按钮 */}
@@ -395,7 +539,7 @@ export default function TasksPage() {
                             variant="ghost"
                             onClick={() => setShowApproveDialog(task)}
                           >
-                            查看详情
+                            <Eye className="h-3 w-3 mr-1" />查看
                           </Button>
                         )}
                       </div>
@@ -427,9 +571,13 @@ export default function TasksPage() {
                 类型: {TYPE_LABELS[showApproveDialog.type] ?? showApproveDialog.type}
                 {" | "}
                 置信度: {showApproveDialog.agent_confidence ?? "未知"}
+                {showApproveDialog.agent_model && ` | 模型: ${showApproveDialog.agent_model}`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* 执行时间线 */}
+              <TaskTimeline task={showApproveDialog} />
+
               {/* AI 输出内容 */}
               <div>
                 <h4 className="text-sm font-medium mb-2">AI 生成结果</h4>
