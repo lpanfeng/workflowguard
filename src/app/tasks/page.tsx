@@ -440,6 +440,53 @@ export default function TasksPage() {
           </Card>
         </div>
 
+        {/* 状态流转可视化 */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              任务状态流转
+            </CardTitle>
+            <CardDescription>任务从创建到完成的完整生命周期</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              {[
+                { key: "pending", label: "待处理", count: stats.pending, color: "bg-slate-400", textColor: "text-slate-600", icon: <Clock className="h-3 w-3" /> },
+                { key: "ai_processing", label: "AI处理", count: tasks.filter((t) => t.status === "ai_processing").length, color: "bg-purple-500", textColor: "text-purple-600", icon: <Cpu className="h-3 w-3" /> },
+                { key: "waiting_approval", label: "待审批", count: stats.waiting_approval, color: "bg-amber-500", textColor: "text-amber-600", icon: <AlertTriangle className="h-3 w-3" /> },
+                { key: "approved", label: "已通过", count: stats.approved, color: "bg-green-500", textColor: "text-green-600", icon: <CheckCircle2 className="h-3 w-3" /> },
+                { key: "rejected", label: "已驳回", count: stats.rejected, color: "bg-red-500", textColor: "text-red-600", icon: <XCircle className="h-3 w-3" /> },
+              ].map((step, idx, arr) => (
+                <div key={step.key} className="flex items-center flex-1 min-w-[80px]">
+                  <div
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-lg ${step.color}/10 border ${step.color}/20 cursor-pointer transition-all hover:scale-105`}
+                    onClick={() => setFilter(step.key === "ai_processing" ? "ai_processing" : step.key)}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step.color} text-white`}>
+                      {step.icon}
+                    </div>
+                    <span className={`text-xs font-medium ${step.textColor}`}>{step.label}</span>
+                    <span className="text-sm font-bold">{step.count}</span>
+                  </div>
+                  {idx < arr.length - 1 && (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0 mx-1" />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 pt-3 border-t flex items-center gap-4 text-xs text-muted-foreground">
+              <span>💡 点击状态筛选对应任务</span>
+              <span>·</span>
+              <span>AI处理: {tasks.filter((t) => t.status === "ai_processing").length} 个任务</span>
+              <span>·</span>
+              <span>
+                完成率: {stats.total > 0 ? Math.round((stats.approved / stats.total) * 100) : 0}%
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* 搜索 */}
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
