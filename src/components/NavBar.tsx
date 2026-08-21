@@ -19,7 +19,7 @@ export function NavBar() {
           </Link>
           <Badge variant="secondary" className="text-xs">Beta</Badge>
         </div>
-        <nav className="flex items-center gap-3">
+        <nav className="flex items-center gap-2 flex-wrap justify-end">
           <LanguageSwitcher />
           <Link href="/dashboard">
             <Button variant="ghost" size="sm">仪表盘</Button>
@@ -38,6 +38,9 @@ export function NavBar() {
           </Link>
           <Link href="/audit-logs">
             <Button variant="ghost" size="sm">审计日志</Button>
+          </Link>
+          <Link href="/reports">
+            <Button variant="ghost" size="sm">报告</Button>
           </Link>
           <Link href="/metrics">
             <Button variant="ghost" size="sm">指标</Button>

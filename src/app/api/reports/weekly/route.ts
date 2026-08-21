@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     switch (range) {
       case "this-week":
         startDate = new Date(now)
-        startDate.setDate(now.getDate() - now.getDay()) // Start of this week (Sunday)
+        startDate.setDate(now.getDate() - now.getDay())
         break
       case "last-week":
         startDate = new Date(now)
@@ -67,6 +67,8 @@ export async function GET(request: Request) {
         retryCount: 0,
         retryRate: 0,
         workflows: [],
+        modelDistribution: {},
+        dailyTrend: [],
       })
     }
 
@@ -131,6 +133,47 @@ export async function GET(request: Request) {
       successRate: wf.executions > 0 ? ((wf.successCount / wf.executions) * 100) : 0,
     }))
 
+    // AI model distribution from audit_logs
+    const { data: auditLogs } = await supabase
+      .from("audit_logs")
+      .select("action, details")
+      .gte("created_at", startDateStr)
+      .lte("created_at", endDateStr)
+      .in("action", ["ai_executed", "ai_failed"])
+
+    const modelDistribution: Record<string, number> = {}
+    auditLogs?.forEach((log: any) => {
+      const model = log.details?.model ?? "unknown"
+      modelDistribution[model] = (modelDistribution[model] ?? 0) + 1
+    })
+
+    // Daily trend (last 7 days)
+    const dailyTrend: Array<{ date: string; label: string; executions: number; success: number; failed: number }> = []
+    for (let i = 6; i >= 0; i--) {
+      const day = new Date()
+      day.setDate(day.getDate() - i)
+      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+      const dayEnd = new Date(dayStart)
+      dayEnd.setDate(dayEnd.getDate() + 1)
+
+      const { data: dayExecs, count: dayCount } = await supabase
+        .from("workflow_executions")
+        .select("id, status", { count: "exact" })
+        .gte("created_at", dayStart.toISOString())
+        .lt("created_at", dayEnd.toISOString())
+
+      const successDay = dayExecs?.filter((e: any) => e.status === "completed").length ?? 0
+      const failedDay = dayExecs?.filter((e: any) => e.status === "failed").length ?? 0
+
+      dailyTrend.push({
+        date: dayStart.toISOString().slice(0, 10),
+        label: `${day.getMonth() + 1}/${day.getDate()}`,
+        executions: dayCount ?? 0,
+        success: successDay,
+        failed: failedDay,
+      })
+    }
+
     return NextResponse.json({
       week: range,
       totalExecutions,
@@ -144,6 +187,8 @@ export async function GET(request: Request) {
       retryCount,
       retryRate,
       workflows,
+      modelDistribution,
+      dailyTrend,
     })
   } catch (err) {
     console.error("Weekly report error:", err)
