@@ -125,6 +125,16 @@ export default function Home() {
             <p className="text-xs text-muted-foreground">全流程可审计</p>
           </div>
         </div>
+
+        {/* 信任条 */}
+        <div className="mt-10 flex flex-wrap justify-center gap-6 text-xs text-muted-foreground fade-in-up">
+          <span className="flex items-center gap-1">🔒 端到端加密</span>
+          <span className="flex items-center gap-1">📋 操作审计日志</span>
+          <span className="flex items-center gap-1">🤖 开源可审计</span>
+          <span className="flex items-center gap-1">⚡ 5分钟上手</span>
+          <span className="flex items-center gap-1">📱 飞书实时通知</span>
+          <span className="flex items-center gap-1">🚫 无需信用卡</span>
+        </div>
       </section>
 
       {/* 痛点 Section */}
@@ -342,6 +352,47 @@ export default function Home() {
           </p>
           <div className="fade-in-up">
             <LandingFAQ />
+          </div>
+        </div>
+      </section>
+
+
+      {/* Trust & Compliance Section */}
+      <section className="border-t py-20 bg-gradient-to-b from-white to-slate-50">
+        <div className="container mx-auto px-4 max-w-5xl">
+          <h2 className="text-2xl font-bold text-center mb-2 fade-in-up">为什么选择 WorkflowGuard？</h2>
+          <p className="text-muted-foreground text-center mb-12 fade-in-up">
+            专为重视安全与合规的团队设计
+          </p>
+          <div className="grid md:grid-cols-4 gap-6">
+            <div className="text-center fade-in-up">
+              <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-7 w-7 text-green-600" />
+              </div>
+              <h3 className="font-semibold mb-2">全程可审计</h3>
+              <p className="text-sm text-muted-foreground">每一次 AI 操作、每一个审批决定，完整记录不可篡改</p>
+            </div>
+            <div className="text-center fade-in-up">
+              <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Lock className="h-7 w-7 text-blue-600" />
+              </div>
+              <h3 className="font-semibold mb-2">数据加密存储</h3>
+              <p className="text-sm text-muted-foreground">端到端加密，Supabase RLS 确保数据只有授权用户可访问</p>
+            </div>
+            <div className="text-center fade-in-up">
+              <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-7 w-7 text-purple-600" />
+              </div>
+              <h3 className="font-semibold mb-2">开源透明</h3>
+              <p className="text-sm text-muted-foreground">核心代码开源可审计，不存在数据后门或隐藏行为</p>
+            </div>
+            <div className="text-center fade-in-up">
+              <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Clock className="h-7 w-7 text-orange-600" />
+              </div>
+              <h3 className="font-semibold mb-2">5 分钟上手</h3>
+              <p className="text-sm text-muted-foreground">预设模板开箱即用，无需编程，无需复杂配置</p>
+            </div>
           </div>
         </div>
       </section>
