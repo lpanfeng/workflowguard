@@ -6,6 +6,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import Provider from "@/components/Provider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { Analytics } from "@/components/Analytics";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -80,6 +81,7 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <Provider>
             <ErrorBoundary>
+              <Analytics />
               {children}
             </ErrorBoundary>
           </Provider>
