@@ -1142,3 +1142,107 @@ export async function handleTaskApprovalResume(
 
   await executor.resumeFromApproval(task.step_id, action === "approve", { modifiedData: modifiedResult })
 }
+
+// ====================
+// 执行失败重试机制
+// ====================
+
+/**
+ * 带重试的执行包装器
+ * 支持指数退避、线性退避、固定退避三种策略
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 1000,
+  backoffType: BackoffType = 'exponential'
+): Promise<T> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+
+      if (attempt >= maxRetries) {
+        throw lastError
+      }
+
+      // 计算延迟
+      let delayMs: number
+      switch (backoffType) {
+        case 'exponential':
+          delayMs = baseDelayMs * Math.pow(2, attempt)
+          break
+        case 'linear':
+          delayMs = baseDelayMs * (attempt + 1)
+          break
+        case 'fixed':
+          delayMs = baseDelayMs
+          break
+        default:
+          delayMs = baseDelayMs * Math.pow(2, attempt)
+      }
+
+      // 指数退避加随机抖动 (jitter)
+      const jitter = Math.random() * delayMs * 0.5
+      const totalDelay = delayMs + jitter
+
+      console.warn(`[WorkflowGuard] 执行失败，${totalDelay.toFixed(0)}ms 后重试 (${attempt + 1}/${maxRetries}):`, lastError?.message)
+      await new Promise(resolve => setTimeout(resolve, totalDelay))
+    }
+  }
+
+  throw lastError!
+}
+
+/**
+ * 步骤级重试：当单步执行失败时，自动重试并更新执行记录
+ */
+export async function executeStepWithRetry(
+  step: StepExecution,
+  executeFn: () => Promise<unknown>,
+  maxRetries: number = 3,
+  baseDelayMs: number = 2000
+): Promise<StepExecution> {
+  let currentStep = { ...step }
+  let lastError: string | null = null
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await executeFn()
+      return {
+        ...currentStep,
+        status: 'step_completed',
+        completedAt: new Date().toISOString(),
+        result,
+        retryCount: attempt,
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error)
+      currentStep.retryCount = (currentStep.retryCount ?? 0) + 1
+      currentStep.error = lastError
+
+      if (attempt >= maxRetries) {
+        return {
+          ...currentStep,
+          status: 'failed',
+          completedAt: new Date().toISOString(),
+          error: lastError,
+        }
+      }
+
+      // 等待后重试
+      const delay = baseDelayMs * Math.pow(2, attempt)
+      await new Promise(resolve => setTimeout(resolve, delay))
+    }
+  }
+
+  return {
+    ...currentStep,
+    status: 'failed',
+    completedAt: new Date().toISOString(),
+    error: lastError,
+  }
+}

@@ -325,3 +325,60 @@ BEGIN
   RETURN result;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================
+-- 4. 工作流执行表 (workflow_executions)
+-- =====================
+DO $$ BEGIN
+  CREATE TYPE execution_status AS ENUM (
+    'idle', 'triggered', 'running', 'step_in_progress',
+    'step_completed', 'waiting_approval', 'approved',
+    'retrying', 'completed', 'failed', 'cancelled',
+    'timed_out', 'paused'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS public.workflow_executions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  workflow_id UUID NOT NULL REFERENCES public.workflows(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  trigger_type TEXT NOT NULL DEFAULT 'manual',
+  trigger_config JSONB DEFAULT '{}'::jsonb,
+  status execution_status NOT NULL DEFAULT 'triggered',
+  current_step_index INTEGER NOT NULL DEFAULT 0,
+  steps JSONB NOT NULL DEFAULT '[]'::jsonb,
+  input_data JSONB DEFAULT '{}'::jsonb,
+  output_data JSONB DEFAULT '{}'::jsonb,
+  error TEXT,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_workflow_executions_workflow_id ON public.workflow_executions(workflow_id);
+CREATE INDEX idx_workflow_executions_user_id ON public.workflow_executions(user_id);
+CREATE INDEX idx_workflow_executions_status ON public.workflow_executions(status) WHERE status NOT IN ('completed', 'failed', 'cancelled');
+
+-- 执行记录 updated_at 触发器
+CREATE TRIGGER workflow_executions_updated_at
+  BEFORE UPDATE ON public.workflow_executions
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+
+-- 执行完成时自动设置 completed_at
+CREATE OR REPLACE FUNCTION public.set_execution_completed_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.status IN ('completed', 'failed', 'cancelled', 'timed_out')
+     AND OLD.status NOT IN ('completed', 'failed', 'cancelled', 'timed_out') THEN
+    NEW.completed_at = NOW();
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER execution_completed_at_trigger
+  BEFORE UPDATE ON public.workflow_executions
+  FOR EACH ROW EXECUTE FUNCTION public.set_execution_completed_at();
