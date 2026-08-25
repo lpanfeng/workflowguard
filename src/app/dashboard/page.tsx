@@ -23,6 +23,7 @@ import { FunnelChart } from "@/components/features/FunnelChart"
 import { DashboardMetricsCards } from "@/components/features/DashboardMetricsCards"
 import { AIExecutionStatsCard } from "@/components/features/AIExecutionStatsCard"
 import WorkspaceBoard from "@/components/features/WorkspaceBoard"
+import QuickStatsBar from "@/components/features/QuickStatsBar"
 
 type DashboardStats = {
   pendingApproval: number
@@ -200,6 +201,9 @@ export default function DashboardPage() {
             刷新数据
           </Button>
         </div>
+
+        {/* 快速统计条 — 3秒概览 */}
+        <QuickStatsBar userId={session.user.id} />
 
         {/* 统计概览 - 新增6项指标卡片 */}
         <DashboardMetricsCards userId={session.user.id} />
