@@ -15,6 +15,9 @@ import {
   ArrowLeft,
   Loader2,
   Rocket,
+  User,
+  Clock,
+  ArrowUpRight,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { MobileNav } from "@/components/MobileNav"
@@ -33,12 +36,59 @@ type OnboardingStep = {
   }
 }
 
+const ONBOARDING_STORAGE_KEY = "workflowguard_onboarding_progress"
+
 export default function OnboardingPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(0)
   const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set())
   const [isCompleting, setIsCompleting] = useState(false)
+  const [lastVisit, setLastVisit] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string>("")
+
+  // 恢复进度
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(ONBOARDING_STORAGE_KEY)
+      if (saved) {
+        try {
+          const data = JSON.parse(saved)
+          if (data.currentStep !== undefined) setCurrentStep(data.currentStep)
+          if (data.completedSteps) setCompletedSteps(new Set(data.completedSteps))
+          if (data.lastVisit) setLastVisit(data.lastVisit)
+        } catch { /* ignore parse errors */ }
+      }
+    }
+    // 提取用户名
+    if (session?.user?.name) {
+      setUserName(session.user.name)
+    } else if (session?.user?.email) {
+      setUserName(session.user.email.split("@")[0])
+    }
+  }, [session])
+
+  // 保存进度
+  const saveProgress = (step: number, completed: Set<number>) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        ONBOARDING_STORAGE_KEY,
+        JSON.stringify({
+          currentStep: step,
+          completedSteps: Array.from(completed),
+          lastVisit: new Date().toISOString(),
+          userId: session?.user?.id,
+        })
+      )
+    }
+  }
+
+  // 清除进度
+  const clearProgress = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(ONBOARDING_STORAGE_KEY)
+    }
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -47,7 +97,9 @@ export default function OnboardingPage() {
   }, [status, router])
 
   const markStepDone = (step: number) => {
-    setCompletedSteps((prev) => new Set(prev).add(step))
+    const next = new Set(completedSteps).add(step)
+    setCompletedSteps(next)
+    saveProgress(step, next)
     if (step < steps.length - 1) {
       setCurrentStep(step + 1)
     }
@@ -57,15 +109,15 @@ export default function OnboardingPage() {
     setIsCompleting(true)
     try {
       if (session?.user?.id) {
-        // 用 Supabase 更新 profiles 表的 has_onboarded 标记
         await supabase
           .from("profiles")
           .update({ has_onboarded: true })
           .eq("id", session.user.id)
       }
-      // Redirect to dashboard
+      clearProgress()
       router.push("/dashboard?onboarded=true")
     } catch {
+      clearProgress()
       router.push("/dashboard?onboarded=true")
     }
   }
@@ -116,6 +168,12 @@ export default function OnboardingPage() {
             <p>📝 <strong>内容发布</strong>：AI 写初稿 → 你编辑 → 一键发布</p>
             <p>📊 <strong>数据录入</strong>：AI 提取数据 → 你确认 → 写入存储</p>
           </div>
+          {/* 社交证明 */}
+          <div className="rounded-lg bg-green-50 dark:bg-green-950/20 p-3 border border-green-200 dark:border-green-800/50">
+            <p className="text-xs text-green-700 dark:text-green-400">
+              🚀 <strong>已有 50+ 团队</strong>使用 WorkflowGuard 实现 AI 人机协作
+            </p>
+          </div>
         </div>
       ),
       action: {
@@ -136,47 +194,50 @@ export default function OnboardingPage() {
           <div className="grid grid-cols-1 gap-3">
             <Link
               href="/workflows/new?template=customer-service"
-              className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+              className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-3">
                 <span className="text-3xl">🎧</span>
-                <div>
-                  <h3 className="font-semibold">客服工单审批流</h3>
-                  <p className="text-xs text-muted-foreground">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">客服工单审批流</h3>
+                    <Badge variant="secondary" className="text-xs">推荐首次使用</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
                     AI 自动分析客户咨询，生成回复建议 → 你审批通过后自动发送
                   </p>
-                  <Badge variant="secondary" className="mt-1 text-xs">
-                    推荐首次使用
-                  </Badge>
                 </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               </div>
             </Link>
             <Link
               href="/workflows/new?template=content-publish"
-              className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+              className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-3">
                 <span className="text-3xl">📝</span>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold">内容发布审批流</h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     AI 生成文章草稿 → 你在线编辑审批 → 完成
                   </p>
                 </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               </div>
             </Link>
             <Link
               href="/workflows/new?template=data-entry"
-              className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors"
+              className="block border rounded-lg p-4 hover:bg-muted/50 transition-colors group"
             >
               <div className="flex items-center gap-3">
                 <span className="text-3xl">📊</span>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-semibold">数据录入审批流</h3>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground mt-1">
                     AI 从文档中提取结构化数据 → 你逐项确认 → 写入数据库
                   </p>
                 </div>
+                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               </div>
             </Link>
           </div>
@@ -252,6 +313,12 @@ export default function OnboardingPage() {
   const isLastStep = currentStep === steps.length - 1
   const allDone = completedSteps.size === steps.length
 
+  // 个性化欢迎
+  const greeting = userName ? `欢迎回来，${userName}！` : "欢迎使用 WorkflowGuard"
+  const lastVisitText = lastVisit
+    ? `上次访问: ${new Date(lastVisit).toLocaleString("zh-CN", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+    : ""
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-950 dark:to-blue-950 flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
@@ -260,7 +327,12 @@ export default function OnboardingPage() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
             <Rocket className="h-8 w-8 text-blue-600 dark:text-blue-400" />
           </div>
-          <h1 className="text-3xl font-bold">欢迎使用 WorkflowGuard 🎉</h1>
+          <h1 className="text-3xl font-bold">{greeting} 🎉</h1>
+          {lastVisitText && (
+            <p className="text-xs text-muted-foreground mt-1 flex items-center justify-center gap-1">
+              <Clock className="h-3 w-3" /> {lastVisitText}
+            </p>
+          )}
           <p className="text-muted-foreground mt-2">
             跟着 3 步快速上手，5 分钟后就能用上你的第一个工作流
           </p>
@@ -312,7 +384,11 @@ export default function OnboardingPage() {
             {currentStep > 0 && (
               <Button
                 variant="ghost"
-                onClick={() => setCurrentStep((p) => Math.max(0, p - 1))}
+                onClick={() => {
+                  const prev = Math.max(0, currentStep - 1)
+                  setCurrentStep(prev)
+                  saveProgress(prev, completedSteps)
+                }}
               >
                 <ArrowLeft className="h-4 w-4 mr-1" />
                 上一步
@@ -321,8 +397,10 @@ export default function OnboardingPage() {
           </div>
           <div className="flex gap-2">
             <Button
-              variant="outline"
-              onClick={() => router.push("/dashboard?onboarded=true")}
+              variant="ghost"
+              size="sm"
+              onClick={() => { clearProgress(); router.push("/dashboard") }}
+              className="text-xs"
             >
               跳过引导
             </Button>
@@ -348,12 +426,11 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        {/* Footer hint */}
+        {/* Footer */}
         <p className="text-center text-xs text-muted-foreground mt-8">
           WorkflowGuard v0.1 · 人机协作工作流平台 · 你的数据安全可控
         </p>
 
-        {/* Mobile Bottom Tab Navigation */}
         <MobileNav />
       </div>
     </div>
