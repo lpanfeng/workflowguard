@@ -1157,13 +1157,13 @@ export async function withRetry<T>(
   baseDelayMs: number = 1000,
   backoffType: BackoffType = 'exponential'
 ): Promise<T> {
-  let lastError: Error | null = null
+  let lastError: string | null = null
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn()
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
+      lastError = error instanceof Error ? error.message : String(error)
 
       if (attempt >= maxRetries) {
         throw lastError

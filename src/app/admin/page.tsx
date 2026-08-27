@@ -1,8 +1,15 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Settings, MessageSquare } from "lucide-react";
+import { FileText, Settings, MessageSquare, Users } from "lucide-react";
 import Link from "next/link";
 
 const adminCards = [
+  {
+    title: "等待名单",
+    description: "查看和管理用户订阅等待名单",
+    icon: Users,
+    href: "/admin/waitlist",
+    color: "text-orange-500",
+  },
   {
     title: "用户反馈",
     description: "查看和管理用户提交的反馈意见",

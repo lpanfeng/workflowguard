@@ -7,6 +7,7 @@ import { TestimonialCarousel } from "@/components/features/TestimonialCarousel";
 import { LandingFAQ } from "@/components/features/LandingFAQ";
 import { OnboardingWizard } from "@/components/features/OnboardingWizard";
 import { useState, useEffect, useRef } from "react";
+import { Shield, Lock, CheckCircle, Clock } from "lucide-react";
 
 export default function Home() {
   const [showDemoCta, setShowDemoCta] = useState(false);
@@ -59,6 +60,9 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <Link href="/auth/login">
               <Button variant="ghost" size="sm">登录</Button>
+            </Link>
+            <Link href="/waitlist">
+              <Button variant="outline" size="sm">加入等待名单</Button>
             </Link>
             <Link href="/auth/register">
               <Button size="sm">免费注册</Button>
@@ -411,8 +415,13 @@ export default function Home() {
                 免费注册 →
               </Button>
             </Link>
-            <Link href="/pricing">
+            <Link href="/waitlist">
               <Button variant="outline" size="lg" className="text-base px-8">
+                加入等待名单
+              </Button>
+            </Link>
+            <Link href="/pricing">
+              <Button variant="ghost" size="lg" className="text-base px-8">
                 查看定价
               </Button>
             </Link>
