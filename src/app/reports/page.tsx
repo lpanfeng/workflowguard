@@ -349,6 +349,7 @@ export default function ReportsPage() {
                                 ))}
                               </Pie>
                               <Tooltip
+                                // @ts-expect-error Recharts formatter type mismatch
                                 formatter={(value: number) => [`${value} 次`, '调用次数']}
                                 contentStyle={{
                                   borderRadius: "8px",
