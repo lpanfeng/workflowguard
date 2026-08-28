@@ -7,6 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Shield, CheckCircle, Clock, Sparkles, Users, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
+
+interface WaitlistStats {
+  total: number;
+  todayCount: number;
+  weekCount: number;
+}
+
+const WORKFLOW_PURPOSES = [
+  { value: "customer_service", label: "客服工单审批", desc: "AI自动分类+人工审批" },
+  { value: "content_publish", label: "内容发布流程", desc: "AI生成+人工审核发布" },
+  { value: "data_entry", label: "数据录入校验", desc: "AI自动校验+异常处理" },
+  { value: "expense_approval", label: "费用报销审批", desc: "AI初筛+多级审批" },
+  { value: "code_review", label: "代码审查辅助", desc: "AI预审+人工确认" },
+  { value: "other", label: "其他场景", desc: "自定义工作流需求" },
+];
 
 interface WaitlistStats {
   total: number;
@@ -19,6 +35,7 @@ export default function WaitlistPage() {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
+  const [workflowPurpose, setWorkflowPurpose] = useState<string[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
@@ -42,7 +59,7 @@ export default function WaitlistPage() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim() || null, company: company.trim() || null, role: role.trim() || null, source: "waitlist_page" }),
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || null, company: company.trim() || null, role: role.trim() || null, workflow_purpose: workflowPurpose.length > 0 ? workflowPurpose.join(",") : null, source: "waitlist_page" }),
       });
       const data = await res.json();
 
@@ -197,6 +214,41 @@ export default function WaitlistPage() {
                     value={role}
                     onChange={(e) => setRole(e.target.value)}
                   />
+                </div>
+              </div>
+
+              {/* Workflow Purpose Selection */}
+              <div className="space-y-3 pt-2">
+                <Label>您最关注的工作流场景（可选，可多选）</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  {WORKFLOW_PURPOSES.map((purpose) => (
+                    <div
+                      key={purpose.value}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        workflowPurpose.includes(purpose.value)
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                      onClick={() => {
+                        setWorkflowPurpose(prev =>
+                          prev.includes(purpose.value)
+                            ? prev.filter(p => p !== purpose.value)
+                            : [...prev, purpose.value]
+                        );
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          checked={workflowPurpose.includes(purpose.value)}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="font-medium text-sm">{purpose.label}</p>
+                          <p className="text-xs text-muted-foreground">{purpose.desc}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
               {status === "error" && (

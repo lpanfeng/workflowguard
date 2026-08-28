@@ -4,7 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, company, role, source } = body;
+    const { email, name, company, role, workflow_purpose, source } = body;
 
     // Validate required fields
     if (!email) {
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
         name: name || null,
         company: company || null,
         role: role || null,
+        workflow_purpose: workflow_purpose || null,
         source: source || 'web',
         status: 'pending',
       })
