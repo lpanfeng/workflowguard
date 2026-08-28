@@ -19,7 +19,17 @@ import {
 } from "@/components/ui/select";
 import { formatDistanceToNow } from "date-fns";
 import { zhCN } from "date-fns/locale";
-import { Download, Users, RefreshCw } from "lucide-react";
+import {
+  Download,
+  Users,
+  RefreshCw,
+  TrendingUp,
+  Calendar,
+  Week,
+  Building2,
+  UserCircle,
+  BarChart3,
+} from "lucide-react";
 
 interface WaitlistEntry {
   id: string;
@@ -33,11 +43,24 @@ interface WaitlistEntry {
   created_at: string;
 }
 
+interface WaitlistStats {
+  total: number;
+  todayCount: number;
+  weekCount: number;
+  statusCounts: Record<string, number>;
+  sourceCounts: Record<string, number>;
+  dailyTrend: Array<{ date: string; count: number }>;
+  topCompanies: string[];
+  topRoles: string[];
+}
+
 export default function WaitlistAdminPage() {
   const [entries, setEntries] = useState<WaitlistEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [stats, setStats] = useState<WaitlistStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const fetchEntries = async () => {
     setLoading(true);
@@ -55,8 +78,22 @@ export default function WaitlistAdminPage() {
     }
   };
 
+  const fetchStats = async () => {
+    setStatsLoading(true);
+    try {
+      const res = await fetch("/api/waitlist/stats");
+      const data = await res.json();
+      setStats(data);
+    } catch (error) {
+      console.error("Failed to fetch stats:", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchEntries();
+    fetchStats();
   }, [statusFilter]);
 
   const handleExport = () => {
@@ -88,6 +125,7 @@ export default function WaitlistAdminPage() {
         body: JSON.stringify({ status: newStatus }),
       });
       fetchEntries();
+      fetchStats();
     } catch (error) {
       console.error("Failed to update status:", error);
     }
@@ -100,15 +138,24 @@ export default function WaitlistAdminPage() {
     archived: "bg-gray-100 text-gray-800",
   };
 
+  const statusLabels: Record<string, string> = {
+    pending: "待处理",
+    active: "已激活",
+    rejected: "已拒绝",
+    archived: "已归档",
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">等待名单管理</h1>
-          <p className="text-muted-foreground">共 {total} 人订阅</p>
+          <p className="text-muted-foreground">
+            共 {total} 人订阅 · 最后更新: {new Date().toLocaleString("zh-CN")}
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={fetchEntries} disabled={loading}>
+          <Button variant="outline" size="sm" onClick={() => { fetchEntries(); fetchStats(); }} disabled={loading || statsLoading}>
             <RefreshCw className="h-4 w-4 mr-1" />
             刷新
           </Button>
@@ -119,6 +166,155 @@ export default function WaitlistAdminPage() {
         </div>
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              总订阅数
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold">
+              {statsLoading ? "..." : stats?.total || total}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              累计加入等待名单
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              今日新增
+            </CardTitle>
+            <Calendar className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-600">
+              {statsLoading ? "..." : stats?.todayCount || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              今天新加入
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              本周新增
+            </CardTitle>
+            <Week className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-blue-600">
+              {statsLoading ? "..." : stats?.weekCount || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              近7天新增
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              待处理
+            </CardTitle>
+            <BarChart3 className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-yellow-600">
+              {statsLoading ? "..." : stats?.statusCounts?.pending || 0}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              待激活用户
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Trend Chart */}
+      {stats?.dailyTrend && stats.dailyTrend.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              近7天订阅趋势
+            </CardTitle>
+            <CardDescription>
+              每日新增订阅数量
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-2 h-32">
+              {stats.dailyTrend.map((day, i) => {
+                const maxCount = Math.max(...stats.dailyTrend.map(d => d.count), 1);
+                const height = (day.count / maxCount) * 100;
+                return (
+                  <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                    <span className="text-xs font-medium">{day.count}</span>
+                    <div
+                      className="w-full bg-primary rounded-t-sm transition-all"
+                      style={{ height: `${Math.max(height, 4)}%` }}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {day.date.slice(5)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Insights */}
+      {stats && (stats.topCompanies.length > 0 || stats.topRoles.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Building2 className="h-4 w-4" />
+                公司分布 (Top 5)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {stats.topCompanies.map((c) => (
+                  <Badge key={c} variant="secondary">{c}</Badge>
+                ))}
+                {stats.topCompanies.length === 0 && (
+                  <span className="text-sm text-muted-foreground">暂无公司数据</span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <UserCircle className="h-4 w-4" />
+                角色分布 (Top 5)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {stats.topRoles.map((r) => (
+                  <Badge key={r} variant="outline">{r}</Badge>
+                ))}
+                {stats.topRoles.length === 0 && (
+                  <span className="text-sm text-muted-foreground">暂无角色数据</span>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Filter and List */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <Users className="h-5 w-5 text-primary" />
@@ -186,7 +382,7 @@ export default function WaitlistAdminPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge className={statusColors[entry.status] || "bg-gray-100"}>
-                      {entry.status}
+                      {statusLabels[entry.status] || entry.status}
                     </Badge>
                     <Select
                       defaultValue={entry.status}

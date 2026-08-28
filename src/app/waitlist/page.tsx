@@ -1,12 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle, Clock, Sparkles } from "lucide-react";
+import { Shield, CheckCircle, Clock, Sparkles, Users, TrendingUp } from "lucide-react";
 import Link from "next/link";
+
+interface WaitlistStats {
+  total: number;
+  todayCount: number;
+  weekCount: number;
+}
 
 export default function WaitlistPage() {
   const [email, setEmail] = useState("");
@@ -16,6 +22,16 @@ export default function WaitlistPage() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
+  const [stats, setStats] = useState<WaitlistStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/waitlist/stats")
+      .then((res) => res.json())
+      .then((data) => setStats(data))
+      .catch(() => {})
+      .finally(() => setStatsLoading(false));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +49,11 @@ export default function WaitlistPage() {
       if (res.ok && data.success) {
         setStatus("success");
         setMessage(data.message);
+        // Refresh stats after successful submission
+        fetch("/api/waitlist/stats")
+          .then((r) => r.json())
+          .then((d) => setStats(d))
+          .catch(() => {});
       } else {
         if (data.alreadyRegistered) {
           setAlreadyRegistered(true);
@@ -80,6 +101,22 @@ export default function WaitlistPage() {
             <Sparkles className="inline h-3 w-3 mr-1" />
             Beta 抢先体验
           </Badge>
+
+          {/* Social Proof Stats */}
+          <div className="flex items-center justify-center gap-6 mb-8">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold">{statsLoading ? "..." : stats?.total || 0}</span>
+              <span className="text-sm text-muted-foreground">人加入等待</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              <span className="text-sm text-muted-foreground">
+                今日 +{stats?.todayCount || 0}
+              </span>
+            </div>
+          </div>
+
           <h1 className="text-4xl font-bold mb-4">
             加入 WorkflowGuard 等待名单
           </h1>
