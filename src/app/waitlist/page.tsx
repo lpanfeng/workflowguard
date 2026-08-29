@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Shield, CheckCircle, Clock, Sparkles, Users, TrendingUp } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Shield, CheckCircle, Clock, Sparkles, Users, TrendingUp, ArrowRight, Zap } from "lucide-react";
 import Link from "next/link";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -36,6 +43,7 @@ export default function WaitlistPage() {
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [workflowPurpose, setWorkflowPurpose] = useState<string[]>([]);
+  const [priority, setPriority] = useState<string>("medium");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
@@ -59,7 +67,7 @@ export default function WaitlistPage() {
       const res = await fetch("/api/waitlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), name: name.trim() || null, company: company.trim() || null, role: role.trim() || null, workflow_purpose: workflowPurpose.length > 0 ? workflowPurpose.join(",") : null, source: "waitlist_page" }),
+        body: JSON.stringify({ email: email.trim(), name: name.trim() || null, company: company.trim() || null, role: role.trim() || null, workflow_purpose: workflowPurpose.length > 0 ? workflowPurpose.join(",") : null, priority, source: "waitlist_page" }),
       });
       const data = await res.json();
 
@@ -163,14 +171,26 @@ export default function WaitlistPage() {
           {/* Form */}
           {status === "success" ? (
             <div className="p-6 rounded-xl bg-green-50 border border-green-200 text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-8 w-8 text-green-500" />
+              </div>
               <h2 className="text-xl font-bold text-green-700 mb-2">
                 {alreadyRegistered ? "您已在等待名单中！" : "恭喜，您已加入等待名单！"}
               </h2>
-              <p className="text-green-600 mb-4">{message}</p>
-              <Link href="/">
-                <Button>返回首页</Button>
-              </Link>
+              <p className="text-green-600 mb-3">{message}</p>
+              <p className="text-sm text-green-600/80 mb-4">
+                {priority === "high" ? "🚀 您被标记为高优先级，将优先获得访问权限！" : "我们会按顺序通知您。"}
+              </p>
+              <div className="flex gap-3 justify-center">
+                <Link href="/">
+                  <Button variant="outline">返回首页</Button>
+                </Link>
+                <Link href="/dashboard">
+                  <Button>
+                    预览仪表盘 <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4 text-left">
@@ -251,6 +271,36 @@ export default function WaitlistPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Priority Selection */}
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="priority">您的优先级（可选）</Label>
+                <Select value={priority} onValueChange={setPriority}>
+                  <SelectTrigger id="priority" className="w-full">
+                    <SelectValue placeholder="选择优先级" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500" />
+                        低 — 有兴趣，不急
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="medium">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-yellow-500" />
+                        中 — 比较关注，尽快试用
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="high">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500" />
+                        高 — 急需，愿意第一时间参与测试
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               {status === "error" && (
                 <p className="text-sm text-red-500">{message}</p>
               )}
@@ -260,6 +310,10 @@ export default function WaitlistPage() {
               <p className="text-xs text-center text-muted-foreground">
                 我们不会 spam，只在产品上线时通知您。
               </p>
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mt-2">
+                <Zap className="h-3 w-3 text-yellow-500" />
+                <span>高优先级用户将优先获得内测资格</span>
+              </div>
             </form>
           )}
         </div>

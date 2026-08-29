@@ -29,6 +29,7 @@ import {
   Building2,
   UserCircle,
   BarChart3,
+  Zap,
 } from "lucide-react";
 
 interface WaitlistEntry {
@@ -49,6 +50,7 @@ interface WaitlistStats {
   weekCount: number;
   statusCounts: Record<string, number>;
   sourceCounts: Record<string, number>;
+  priorityCounts: Record<string, number>;
   dailyTrend: Array<{ date: string; count: number }>;
   topCompanies: string[];
   topRoles: string[];
@@ -273,8 +275,45 @@ export default function WaitlistAdminPage() {
       )}
 
       {/* Insights */}
-      {stats && (stats.topCompanies.length > 0 || stats.topRoles.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {stats && (stats.topCompanies.length > 0 || stats.topRoles.length > 0 || stats.priorityCounts) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Priority Distribution */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Zap className="h-4 w-4" />
+                优先级分布
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {(["high", "medium", "low"] as const).map((p) => {
+                  const count = stats.priorityCounts?.[p] || 0;
+                  const total = Object.values(stats.priorityCounts || {}).reduce((a: number, b: number) => a + b, 0) || 1;
+                  const pct = Math.round((count / total) * 100);
+                  const colors: Record<string, string> = {
+                    high: "bg-red-500",
+                    medium: "bg-yellow-500",
+                    low: "bg-green-500",
+                  };
+                  const labels: Record<string, string> = {
+                    high: "高优先级",
+                    medium: "中优先级",
+                    low: "低优先级",
+                  };
+                  return (
+                    <div key={p} className="flex items-center gap-3">
+                      <span className="text-xs w-16 text-muted-foreground">{labels[p]}</span>
+                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                        <div className={`h-full ${colors[p]} rounded-full`} style={{ width: `${pct}%` }} />
+                      </div>
+                      <span className="text-xs font-medium w-8 text-right">{count} ({pct}%)</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-sm">

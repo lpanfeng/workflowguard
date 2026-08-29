@@ -79,6 +79,17 @@ export async function GET() {
       });
     }
 
+    // Get priority breakdown
+    const { data: priorityData } = await supabaseAdmin
+      .from('waitlists')
+      .select('priority')
+      .limit(1000);
+    const priorityCounts: Record<string, number> = {};
+    priorityData?.forEach(e => {
+      const p = e.priority || 'unspecified';
+      priorityCounts[p] = (priorityCounts[p] || 0) + 1;
+    });
+
     // Get recent entries for company/role insights
     const { data: recentEntries } = await supabaseAdmin
       .from('waitlists')
@@ -97,6 +108,7 @@ export async function GET() {
       weekCount,
       statusCounts,
       sourceCounts,
+      priorityCounts,
       dailyTrend,
       topCompanies,
       topRoles,
