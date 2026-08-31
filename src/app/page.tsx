@@ -401,6 +401,25 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Waitlist CTA 区块（FAQ下方） */}
+      <section className="border-t py-16 bg-gradient-to-r from-primary/8 to-blue-500/8">
+        <div className="container mx-auto px-4 text-center max-w-2xl">
+          <h2 className="text-2xl font-bold mb-3 fade-in-up">还没有想好？先加入等待名单</h2>
+          <p className="text-muted-foreground mb-6 fade-in-up">
+            加入等待名单，第一时间获取 Beta 版通知、产品更新和行业洞察。<br />
+            已有 <strong className="text-foreground">100+</strong> 团队加入，无需信用卡。
+          </p>
+          <Link href="/waitlist" className="inline-block">
+            <Button size="lg" variant="secondary" className="text-base px-8 font-semibold">
+              加入等待名单 →
+            </Button>
+          </Link>
+          <p className="mt-4 text-xs text-muted-foreground fade-in-up">
+            🔒 我们不会骚扰你，只有产品重要更新
+          </p>
+        </div>
+      </section>
+
       {/* CTA 区块 */}
       <section className="border-t py-20 bg-gradient-to-r from-primary/5 to-blue-500/5">
         <div className="container mx-auto px-4 text-center max-w-2xl">

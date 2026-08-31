@@ -25,7 +25,7 @@ import {
   RefreshCw,
   TrendingUp,
   Calendar,
-  Week,
+  CalendarRange,
   Building2,
   UserCircle,
   BarChart3,
@@ -209,7 +209,7 @@ export default function WaitlistAdminPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">
               本周新增
             </CardTitle>
-            <Week className="h-4 w-4 text-blue-500" />
+            <CalendarRange className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
