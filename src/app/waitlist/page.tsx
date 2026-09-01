@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,15 +39,15 @@ interface WaitlistStats {
 }
 
 export default function WaitlistPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [role, setRole] = useState("");
   const [workflowPurpose, setWorkflowPurpose] = useState<string[]>([]);
   const [priority, setPriority] = useState<string>("medium");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [message, setMessage] = useState("");
-  const [alreadyRegistered, setAlreadyRegistered] = useState(false);
   const [stats, setStats] = useState<WaitlistStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
 
@@ -72,18 +73,11 @@ export default function WaitlistPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        setStatus("success");
-        setMessage(data.message);
-        // Refresh stats after successful submission
-        fetch("/api/waitlist/stats")
-          .then((r) => r.json())
-          .then((d) => setStats(d))
-          .catch(() => {});
+        // Redirect to success page with email param
+        router.push(`/waitlist/success?email=${encodeURIComponent(email.trim())}`);
       } else {
         if (data.alreadyRegistered) {
-          setAlreadyRegistered(true);
-          setStatus("success");
-          setMessage("您的邮箱已在等待名单中，我们会第一时间通知您！");
+          router.push(`/waitlist/success?email=${encodeURIComponent(email.trim())}&already=true`);
         } else {
           setStatus("error");
           setMessage(data.error || "提交失败，请稍后重试");
@@ -169,31 +163,12 @@ export default function WaitlistPage() {
           </div>
 
           {/* Form */}
-          {status === "success" ? (
-            <div className="p-6 rounded-xl bg-green-50 border border-green-200 text-center">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="h-8 w-8 text-green-500" />
-              </div>
-              <h2 className="text-xl font-bold text-green-700 mb-2">
-                {alreadyRegistered ? "您已在等待名单中！" : "恭喜，您已加入等待名单！"}
-              </h2>
-              <p className="text-green-600 mb-3">{message}</p>
-              <p className="text-sm text-green-600/80 mb-4">
-                {priority === "high" ? "🚀 您被标记为高优先级，将优先获得访问权限！" : "我们会按顺序通知您。"}
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Link href="/">
-                  <Button variant="outline">返回首页</Button>
-                </Link>
-                <Link href="/dashboard">
-                  <Button>
-                    预览仪表盘 <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </Link>
-              </div>
+          {status === "error" && (
+            <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-center mb-4">
+              <p className="text-red-500 text-sm">{message}</p>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4 text-left">
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4 text-left">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">姓名（可选）</Label>
@@ -275,7 +250,7 @@ export default function WaitlistPage() {
               {/* Priority Selection */}
               <div className="space-y-2 pt-2">
                 <Label htmlFor="priority">您的优先级（可选）</Label>
-                <Select value={priority} onValueChange={setPriority}>
+                <Select value={priority} onValueChange={(v) => setPriority(v || "medium")}>
                   <SelectTrigger id="priority" className="w-full">
                     <SelectValue placeholder="选择优先级" />
                   </SelectTrigger>
@@ -315,7 +290,6 @@ export default function WaitlistPage() {
                 <span>高优先级用户将优先获得内测资格</span>
               </div>
             </form>
-          )}
         </div>
       </section>
 
