@@ -73,8 +73,18 @@ export default function WaitlistPage() {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Redirect to success page with email param
-        router.push(`/waitlist/success?email=${encodeURIComponent(email.trim())}`);
+        // Send confirmation email (simulated)
+        try {
+          await fetch("/api/waitlist/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email.trim() }),
+          });
+        } catch (_) {
+          // Simulated email send, ignore errors
+        }
+        // Redirect to success page with email param + confirmation hint
+        router.push(`/waitlist/success?email=${encodeURIComponent(email.trim())}&confirm_sent=true`);
       } else {
         if (data.alreadyRegistered) {
           router.push(`/waitlist/success?email=${encodeURIComponent(email.trim())}&already=true`);

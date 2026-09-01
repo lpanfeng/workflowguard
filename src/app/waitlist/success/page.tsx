@@ -139,7 +139,12 @@ export default function WaitlistSuccessPage() {
                 确认邮件将发送至 <strong className="text-foreground">{email}</strong>
               </p>
             )}
-            
+            {searchParams.get("confirm_sent") === "true" && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 text-sm mb-3">
+                <Shield className="h-4 w-4" />
+                已发送确认邮件到邮箱，请查收并点击链接确认订阅
+              </div>
+            )}
             <p className="text-muted-foreground">
               我们已收到您的订阅，产品上线时会第一时间通知您。
             </p>
