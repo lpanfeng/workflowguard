@@ -4,16 +4,16 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET() {
   try {
     // Get total count
-    const { data: all, error } = await supabaseAdmin
+    const { data: all, error, count } = await supabaseAdmin
       .from('waitlists')
-      .select('id, created_at, source, status', { count: 'exact', head: true });
+      .select('id, created_at, source, status', { count: 'exact', head: false });
 
     if (error) {
       console.error('[Waitlist Stats] Error:', error);
       return NextResponse.json({ error: '获取统计数据失败' }, { status: 500 });
     }
 
-    const total = all?.[0]?.count || 0;
+    const total = count || 0;
 
     // Get today's count
     const todayStart = new Date();
