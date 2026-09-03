@@ -30,6 +30,8 @@ import {
   UserCircle,
   BarChart3,
   Zap,
+  Mail,
+  Send,
 } from "lucide-react";
 
 interface WaitlistEntry {
@@ -41,6 +43,7 @@ interface WaitlistEntry {
   source: string;
   status: string;
   note: string | null;
+  priority: string | null;
   created_at: string;
 }
 
@@ -63,6 +66,9 @@ export default function WaitlistAdminPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [stats, setStats] = useState<WaitlistStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [outreachLoading, setOutreachLoading] = useState(false);
+  const [outreachResult, setOutreachResult] = useState<any>(null);
+  const [outreachSentCount, setOutreachSentCount] = useState(0);
 
   const fetchEntries = async () => {
     setLoading(true);
@@ -77,6 +83,60 @@ export default function WaitlistAdminPage() {
       console.error("Failed to fetch waitlist:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOutreachStats = async () => {
+    try {
+      const res = await fetch("/api/outreach/stats");
+      const data = await res.json();
+      setOutreachSentCount(data.outreachSentTotal || 0);
+    } catch (error) {
+      console.error("Failed to fetch outreach stats:", error);
+    }
+  };
+
+  const handleOutreach = async (priority: string) => {
+    setOutreachLoading(true);
+    setOutreachResult(null);
+    try {
+      const res = await fetch("/api/outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority, note: "你是我们的种子用户，欢迎体验WorkflowGuard！" }),
+      });
+      const data = await res.json();
+      setOutreachResult(data);
+      fetchOutreachStats();
+      fetchEntries();
+      fetchStats();
+    } catch (error) {
+      console.error("Outreach failed:", error);
+      setOutreachResult({ error: "发送失败，请稍后重试" });
+    } finally {
+      setOutreachLoading(false);
+    }
+  };
+
+  const handleOutreachBatch = async (priorities: string[]) => {
+    setOutreachLoading(true);
+    setOutreachResult(null);
+    try {
+      const res = await fetch("/api/outreach/batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priorities, note: "你是我们的种子用户，欢迎体验WorkflowGuard！" }),
+      });
+      const data = await res.json();
+      setOutreachResult(data);
+      fetchOutreachStats();
+      fetchEntries();
+      fetchStats();
+    } catch (error) {
+      console.error("Outreach batch failed:", error);
+      setOutreachResult({ error: "发送失败，请稍后重试" });
+    } finally {
+      setOutreachLoading(false);
     }
   };
 
@@ -96,6 +156,7 @@ export default function WaitlistAdminPage() {
   useEffect(() => {
     fetchEntries();
     fetchStats();
+    fetchOutreachStats();
   }, [statusFilter]);
 
   const handleExport = () => {
@@ -138,6 +199,7 @@ export default function WaitlistAdminPage() {
     active: "bg-green-100 text-green-800",
     rejected: "bg-red-100 text-red-800",
     archived: "bg-gray-100 text-gray-800",
+    outreach_sent: "bg-blue-100 text-blue-800",
   };
 
   const statusLabels: Record<string, string> = {
@@ -145,6 +207,13 @@ export default function WaitlistAdminPage() {
     active: "已激活",
     rejected: "已拒绝",
     archived: "已归档",
+    outreach_sent: "已发送Outreach",
+  };
+
+  const priorityColors: Record<string, string> = {
+    high: "bg-red-100 text-red-800",
+    medium: "bg-yellow-100 text-yellow-800",
+    low: "bg-green-100 text-green-800",
   };
 
   return (
@@ -353,6 +422,71 @@ export default function WaitlistAdminPage() {
         </div>
       )}
 
+      {/* Outreach Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            Outreach 邮件发送
+          </CardTitle>
+          <CardDescription>
+            向种子用户发送个性化邀请邮件 · 已发送: {outreachSentCount} 封
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <Button
+              onClick={() => handleOutreach("high")}
+              disabled={outreachLoading || (stats?.priorityCounts?.high || 0) === 0}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Send className="h-4 w-4 mr-1" />
+              发送高优先级 ({stats?.priorityCounts?.high || 0} 人)
+            </Button>
+            <Button
+              onClick={() => handleOutreach("medium")}
+              disabled={outreachLoading || (stats?.priorityCounts?.medium || 0) === 0}
+              variant="outline"
+            >
+              <Send className="h-4 w-4 mr-1" />
+              发送中优先级 ({stats?.priorityCounts?.medium || 0} 人)
+            </Button>
+            <Button
+              onClick={() => handleOutreach("low")}
+              disabled={outreachLoading || (stats?.priorityCounts?.low || 0) === 0}
+              variant="outline"
+            >
+              <Send className="h-4 w-4 mr-1" />
+              发送低优先级 ({stats?.priorityCounts?.low || 0} 人)
+            </Button>
+            <Button
+              onClick={() => handleOutreachBatch(["high", "medium"])}
+              disabled={outreachLoading}
+              variant="secondary"
+            >
+              <Send className="h-4 w-4 mr-1" />
+              一键发送高+中优先级
+            </Button>
+          </div>
+          {outreachLoading && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              正在发送邮件... ({outreachResult?.sent ?? 0} 封已发送)
+            </div>
+          )}
+          {outreachResult && !outreachLoading && (
+            <div className="text-sm space-y-1">
+              <div className="text-green-600 font-medium">
+                ✅ 发送完成: 成功 {outreachResult.sent} 封, 失败 {outreachResult.failed ?? 0} 封
+              </div>
+              {outreachResult.error && (
+                <div className="text-red-600">⚠️ {outreachResult.error}</div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Filter and List */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
@@ -408,13 +542,20 @@ export default function WaitlistAdminPage() {
                           <span className="ml-2">· {entry.role}</span>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {formatDistanceToNow(new Date(entry.created_at), {
-                          addSuffix: true,
-                          locale: zhCN,
-                        })}
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                        <span>
+                          {formatDistanceToNow(new Date(entry.created_at), {
+                            addSuffix: true,
+                            locale: zhCN,
+                          })}
+                        </span>
                         {entry.source !== "web" && (
-                          <span className="ml-2">来自 {entry.source}</span>
+                          <span>来自 {entry.source}</span>
+                        )}
+                        {entry.priority && (
+                          <Badge className={`${priorityColors[entry.priority]} text-xs py-0`}>
+                            {entry.priority === 'high' ? '高' : entry.priority === 'medium' ? '中' : '低'}优先
+                          </Badge>
                         )}
                       </div>
                     </div>
@@ -434,6 +575,7 @@ export default function WaitlistAdminPage() {
                         <SelectItem value="pending">待处理</SelectItem>
                         <SelectItem value="active">已激活</SelectItem>
                         <SelectItem value="rejected">已拒绝</SelectItem>
+                        <SelectItem value="outreach_sent">已发送Outreach</SelectItem>
                         <SelectItem value="archived">已归档</SelectItem>
                       </SelectContent>
                     </Select>
