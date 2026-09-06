@@ -60,50 +60,53 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const status = searchParams.get('status');
+  const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
+  const offset = parseInt(searchParams.get('offset') || '0');
+
   try {
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 200);
-    const offset = parseInt(searchParams.get('offset') || '0');
+    let query = supabaseAdmin
+      .from('waitlists')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-    try {
-      let query = supabaseAdmin
-        .from('waitlists')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+    if (status) {
+      query = query.eq('status', status);
+    }
 
-      if (status) {
-        query = query.eq('status', status);
-      }
+    const { data, error, count } = await query;
 
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error('[Waitlist] DB Error:', error);
-        return NextResponse.json({ error: '数据库查询失败' }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        waitlists: data || [],
-        total: count || 0,
-        limit,
-        offset,
-        dbStatus: 'connected',
-      });
-    } catch (dbError) {
-      console.error('[Waitlist] Supabase unavailable, returning empty:', dbError);
+    if (error) {
+      console.error('[Waitlist] DB Error:', error);
+      // Return empty data instead of error
       return NextResponse.json({
         waitlists: [],
         total: 0,
         limit,
         offset,
         dbStatus: 'error',
-        message: '数据库暂时不可用',
+        message: '数据库暂时不可用，数据可能无法显示',
       });
     }
+
+    return NextResponse.json({
+      waitlists: data || [],
+      total: count || 0,
+      limit,
+      offset,
+      dbStatus: 'connected',
+    });
   } catch (error) {
-    console.error('[Waitlist] Error:', error);
-    return NextResponse.json({ error: '服务器内部错误' }, { status: 500 });
+    console.error('[Waitlist] Supabase unavailable:', error);
+    return NextResponse.json({
+      waitlists: [],
+      total: 0,
+      limit,
+      offset,
+      dbStatus: 'error',
+      message: '数据库暂时不可用',
+    });
   }
 }
