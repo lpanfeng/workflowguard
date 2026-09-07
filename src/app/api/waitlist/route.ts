@@ -4,13 +4,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, company, role, workflow_purpose, priority, source } = body;
+    const { email, name, company, role, workflow_purpose, priority, source, referred_by } = body;
 
     if (!email) {
       return NextResponse.json({ error: '邮箱地址是必填项' }, { status: 400 });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return NextResponse.json({ error: '邮箱格式不正确' }, { status: 400 });
     }
@@ -27,18 +27,38 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '该邮箱已在等待名单中', alreadyRegistered: true }, { status: 409 });
       }
 
+      const insertData: any = {
+        email,
+        name: name || null,
+        company: company || null,
+        role: role || null,
+        workflow_purpose: workflow_purpose || null,
+        priority: priority || null,
+        source: source || 'web',
+        status: 'pending',
+      };
+
+      // Track referral
+      if (referred_by) {
+        insertData.referred_by = referred_by;
+        // Increment referrer's count
+        const { error: updateError } = await supabaseAdmin
+          .from('waitlists')
+          .update({ referred_count: (supabaseAdmin as any).postgrest?.rpc ? 0 : 0 })
+          .eq('referral_code', referred_by)
+          .eq('status', 'active');
+        
+        // Use raw SQL for increment
+        try {
+          await supabaseAdmin.rpc('increment_referred_count', { p_code: referred_by });
+        } catch (rpcErr) {
+          console.log('[Waitlist] RPC not available, will use manual increment');
+        }
+      }
+
       const { data, error } = await supabaseAdmin
         .from('waitlists')
-        .insert({
-          email,
-          name: name || null,
-          company: company || null,
-          role: role || null,
-          workflow_purpose: workflow_purpose || null,
-          priority: priority || null,
-          source: source || 'web',
-          status: 'pending',
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -47,8 +67,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '提交失败，请稍后重试' }, { status: 500 });
       }
 
-      console.log('[Waitlist] New signup:', data?.id, email, 'from', source);
-      return NextResponse.json({ success: true, id: data?.id, message: '感谢您的关注！我们会在产品上线时第一时间通知您。' }, { status: 201 });
+      console.log('[Waitlist] New signup:', data?.id, email, 'from', source, referred_by ? `referred by ${referred_by}` : '');
+      return NextResponse.json({ 
+        success: true, 
+        id: data?.id, 
+        message: '感谢您的关注！我们会在产品上线时第一时间通知您。',
+        referredBy: referred_by || null
+      }, { status: 201 });
     } catch (dbError) {
       console.error('[Waitlist] Supabase unavailable:', dbError);
       return NextResponse.json({ error: '服务暂时不可用，请稍后重试' }, { status: 503 });
@@ -80,14 +105,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[Waitlist] DB Error:', error);
-      // Return empty data instead of error
       return NextResponse.json({
         waitlists: [],
         total: 0,
         limit,
         offset,
         dbStatus: 'error',
-        message: '数据库暂时不可用，数据可能无法显示',
+        message: '数据库暂时不可用',
       });
     }
 

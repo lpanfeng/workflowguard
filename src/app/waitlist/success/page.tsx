@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Shield, CheckCircle, Clock, Sparkles, Users, TrendingUp, ArrowRight, Zap, Copy, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ReferralCard } from "@/components/features/ReferralCard";
 
 const FEATURE_HIGHLIGHTS = [
   {
@@ -58,11 +59,9 @@ export default function WaitlistSuccessPage() {
   const [countLoading, setCountLoading] = useState(true);
 
   useEffect(() => {
-    // Get email from URL params if passed
     const emailParam = searchParams.get("email");
     if (emailParam) setEmail(decodeURIComponent(emailParam));
 
-    // Fetch total count for social proof
     fetch("/api/waitlist/stats")
       .then((res) => res.json())
       .then((data) => setTotalCount(data.total))
@@ -84,7 +83,6 @@ export default function WaitlistSuccessPage() {
     
     switch (platform) {
       case "微信":
-        // WeChat doesn't have a direct share URL, just copy
         handleCopyLink();
         break;
       case "微博":
@@ -120,7 +118,6 @@ export default function WaitlistSuccessPage() {
         <div className="container mx-auto max-w-2xl">
           {/* Success Card */}
           <div className="text-center mb-10">
-            {/* Big Checkmark */}
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6 animate-bounce">
               <CheckCircle className="h-10 w-10 text-green-500" />
             </div>
@@ -167,6 +164,11 @@ export default function WaitlistSuccessPage() {
             </div>
           </div>
 
+          {/* Referral Card */}
+          <div className="mb-8">
+            <ReferralCard userEmail={email || undefined} />
+          </div>
+
           {/* Feature Highlights */}
           <div className="grid grid-cols-3 gap-4 mb-10">
             {FEATURE_HIGHLIGHTS.map((feature) => {
@@ -184,40 +186,6 @@ export default function WaitlistSuccessPage() {
                 </div>
               );
             })}
-          </div>
-
-          {/* Invite Friends Section */}
-          <div className="rounded-xl border border-dashed border-primary/30 bg-primary/5 p-6 mb-8">
-            <h2 className="text-lg font-semibold mb-2 text-center">
-              🎉 邀请同事一起加入
-            </h2>
-            <p className="text-sm text-muted-foreground text-center mb-4">
-              分享给更多人，一起见证AI人机协作的未来
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              {SHARE_TEXTS.map((share) => (
-                <Button
-                  key={share.platform}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleShare(share.platform)}
-                  className="gap-2"
-                >
-                  <span>{share.icon}</span>
-                  {share.platform}
-                  <ExternalLink className="h-3 w-3" />
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyLink}
-                className="gap-2"
-              >
-                <Copy className={`h-3 w-3 ${copied ? "text-green-500" : ""}`} />
-                {copied ? "已复制!" : "复制链接"}
-              </Button>
-            </div>
           </div>
 
           {/* Next Steps */}
@@ -269,7 +237,6 @@ export default function WaitlistSuccessPage() {
             </Link>
           </div>
 
-          {/* Privacy note */}
           <p className="text-xs text-center text-muted-foreground mt-6">
             我们尊重您的隐私，不会发送垃圾邮件。只在产品有重要更新时联系您。
           </p>
