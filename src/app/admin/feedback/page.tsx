@@ -194,10 +194,9 @@ export default function FeedbackAnalyticsPage() {
           <CardContent>
             <div className="text-3xl font-bold text-yellow-600">
               {stats?.ratingDistribution
-                ? Object.entries(stats.ratingDistribution)
+                ? (Object.entries(stats.ratingDistribution)
                     .reduce((sum, [r, c]) => sum + Number(r) * c, 0) /
-                  Object.values(stats.ratingDistribution).reduce((a, b) => a + b, 1)
-                    .toFixed(1)
+                  Object.values(stats.ratingDistribution).reduce((a, b) => a + b, 1)).toFixed(1)
                 : "--"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">基于评分反馈</p>
