@@ -327,7 +327,7 @@ export default function FeedbackAnalyticsPage() {
       )}
 
       {/* Recent Feedbacks */}
-      {stats?.recentFeedbacks.length > 0 && (
+      {stats?.recentFeedbacks?.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>最近反馈</CardTitle>
@@ -335,7 +335,7 @@ export default function FeedbackAnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.recentFeedbacks.map((f) => (
+              {stats.recentFeedbacks?.map((f) => (
                 <div key={f.id} className="flex items-start justify-between p-3 rounded-lg border">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
