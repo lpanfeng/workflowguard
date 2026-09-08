@@ -310,7 +310,7 @@ export default function FeedbackAnalyticsPage() {
               {stats?.iterationPriorities.map((p, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <div className="flex items-center gap-3">
-                    <Badge style={{ backgroundColor: PRIORITY_COLORS[p.priority] || "#6366f1" }}>
+                    <Badge style={{ backgroundColor: PRIORITY_COLORS[p.priority as keyof typeof PRIORITY_COLORS] || "#6366f1" }}>
                       {p.priority}
                     </Badge>
                     <div>
